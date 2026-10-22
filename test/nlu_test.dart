@@ -317,4 +317,64 @@ void main() {
       expect(kn.type!.value, 'Pest');
     });
   });
+
+  group('natural sentences', () {
+    void expectFarmer(FormParseResult r, String name, String phone, String project, String soil,
+        String irrigation, double area) {
+      expect(r.name!.value, name);
+      expect(r.phone!.value, phone);
+      expect(r.projectId!.value, project);
+      expect(r.soil!.value, soil);
+      expect(r.irrigation!.value, irrigation);
+      expect(r.area!.value, area);
+      expect(r.unmapped, isEmpty);
+    }
+
+    test('English', () {
+      expectFarmer(
+          formParser().parse('Okay so the farmer name is Ramesh Gowda and his mobile number is '
+              '98450 12345. The project will be Kharif Chilli. He has around 2 acres of red soil '
+              'and they use drip irrigation.'),
+          'Ramesh Gowda', '9845012345', 'p1', 'Red Soil', 'Drip', 2);
+    });
+
+    test('Hindi', () {
+      expectFarmer(
+          formParser().parse('किसान का नाम सुरेश यादव है, उनका मोबाइल नंबर 98765 43210 है, '
+              'प्रोजेक्ट रबी आलू रहेगा, उनके पास 3 एकड़ काली मिट्टी की जमीन है और ड्रिप से सिंचाई होती है'),
+          'Suresh Yadav', '9876543210', 'p2', 'Black Soil', 'Drip', 3);
+    });
+
+    test('Kannada', () {
+      expectFarmer(
+          formParser().parse('ರೈತನ ಹೆಸರು ರಮೇಶ್ ಗೌಡ, ಅವರ ಮೊಬೈಲ್ ನಂಬರ್ 98450 12345, ಪ್ರಾಜೆಕ್ಟ್ ಖಾರಿಫ್ '
+              'ಮೆಣಸಿನಕಾಯಿ, ಅವರಿಗೆ ಎರಡು ಎಕರೆ ಕೆಂಪು ಮಣ್ಣಿನ ಜಮೀನು ಇದೆ, ಹನಿ ನೀರಾವರಿ ಮಾಡ್ತಾರೆ'),
+          'Ramesh Gowda', '9845012345', 'p1', 'Red Soil', 'Drip', 2);
+    });
+
+    test('Tamil', () {
+      expectFarmer(
+          formParser().parse('விவசாயி பெயர் முருகன் செல்வம், அவருடைய மொபைல் எண் 94430 56789, '
+              'திட்டம் காரீப் மிளகாய், அவரிடம் இரண்டு ஏக்கர் செம்மண் நிலம் உள்ளது, சொட்டு நீர் '
+              'பாசனம் செய்கிறார்'),
+          'Murugan Selvam', '9443056789', 'p1', 'Red Soil', 'Drip', 2);
+    });
+
+    test('self-corrections: the last value said wins', () {
+      final r = formParser().parse('name Ramesh Gowda, mobile 98450 12344 sorry 98450 12345, '
+          'red soil no actually black soil, 2 acres sorry 3 acres, drip');
+      expect(r.name!.value, 'Ramesh Gowda');
+      expect(r.phone!.value, '9845012345');
+      expect(r.soil!.value, 'Black Soil');
+      expect(r.irrigation!.value, 'Drip');
+      expect(r.area!.value, 3);
+      expect(r.unmapped, isEmpty);
+    });
+
+    test('routes a natural farmer sentence to Add Farmer', () {
+      expect(
+          IntentRouter.detect('farmer name is Ramesh Gowda and his mobile number is 98450 12345'),
+          AgentIntent.addFarmer);
+    });
+  });
 }

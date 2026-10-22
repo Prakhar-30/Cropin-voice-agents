@@ -156,7 +156,11 @@ class PhraseMatcher {
     if (!windowIndic && wKey == '${p.key}s') return 0.93;
     if (p.key.length <= 3 || wKey.length <= 3) return 0;
     final s = TextUtils.similarity(wKey, p.key);
-    if (s >= 0.8) return s;
+    // Short words need a near-exact sound match ("gowda" must not become "ಗೋಡು").
+    final minLen = wKey.length < p.key.length ? wKey.length : p.key.length;
+    if (s >= (minLen <= 5 ? 0.9 : 0.8) && !(minLen <= 5 && s < 1 && windowIndic != p.isIndic)) {
+      return s;
+    }
     // Transliterated word with a native suffix: "ಡ್ರಿಪ್ಪಿನ" ~ "drip"
     if (windowIndic && wKey.startsWith(p.key) && p.key.length >= 4) return 0.85;
     return 0;
@@ -177,9 +181,11 @@ class PhraseMatcher {
         }
       }
     });
-    // Prefer higher scores, then longer phrases.
+    // Prefer higher scores, with a bonus for covering more words
+    // ("ಕೆಂಪು ಮಣ್ಣಿನ" as one soil phrase beats the bare "ಕೆಂಪು").
+    double rank(PhraseMatch<T> m) => m.score + 0.1 * (m.length - 1);
     out.sort((a, b) {
-      final c = b.score.compareTo(a.score);
+      final c = rank(b).compareTo(rank(a));
       return c != 0 ? c : b.length.compareTo(a.length);
     });
     return out;
@@ -194,6 +200,25 @@ class PhraseMatcher {
     final top = all.first;
     if (consume) u.consume(top.start, top.length);
     return top;
+  }
+
+  /// Last mention wins ("red soil… sorry, black soil" -> Black Soil). Every
+  /// mention is consumed so corrected words don't show up as unmapped.
+  static PhraseMatch<T>? latest<T>(Utterance u, Map<T, List<String>> lexicon,
+      {double minScore = 0.8}) {
+    final all = findAll(u, lexicon, minScore: minScore);
+    if (all.isEmpty) return null;
+    final top = all.first.score;
+    // Only strong mentions count as (re)statements; weak fuzzy hits stay free.
+    final taken = <PhraseMatch<T>>[];
+    for (final m in all) {
+      if (m.score >= top - 0.08 && u.isFree(m.start, m.length)) {
+        u.consume(m.start, m.length);
+        taken.add(m);
+      }
+    }
+    taken.sort((a, b) => b.start.compareTo(a.start));
+    return taken.first;
   }
 
   /// Consumes every match (used for markers / multiple mentions).

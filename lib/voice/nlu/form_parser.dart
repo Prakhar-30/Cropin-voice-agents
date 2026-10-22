@@ -80,9 +80,9 @@ class FormParser {
     }
 
     // 3. Soil & irrigation dropdowns (fuzzy, multilingual)
-    final soil = PhraseMatcher.best(u, Lexicon.soil);
+    final soil = PhraseMatcher.latest(u, Lexicon.soil);
     if (soil != null) r.soil = Slot(soil.value, soil.score, soil.spoken);
-    final irr = PhraseMatcher.best(u, Lexicon.irrigation);
+    final irr = PhraseMatcher.latest(u, Lexicon.irrigation);
     if (irr != null) r.irrigation = Slot(irr.value, irr.score, irr.spoken);
 
     // 4. Project: direct name match first, then crop + season.
@@ -93,9 +93,9 @@ class FormParser {
       for (final p in projects)
         p.id: [p.name, p.name.replaceAll(RegExp(r'\d'), '').trim(), ...p.aliases],
     };
-    final direct = PhraseMatcher.best(u, projectLex, minScore: 0.85);
-    final crop = PhraseMatcher.best(u, Lexicon.crop);
-    final season = PhraseMatcher.best(u, Lexicon.season);
+    final direct = PhraseMatcher.latest(u, projectLex, minScore: 0.85);
+    final crop = PhraseMatcher.latest(u, Lexicon.crop);
+    final season = PhraseMatcher.latest(u, Lexicon.season);
     if (crop != null) r.crop = Slot(crop.value, crop.score, crop.spoken);
     if (season != null) r.season = Slot(season.value, season.score, season.spoken);
 

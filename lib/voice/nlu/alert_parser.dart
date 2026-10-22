@@ -44,10 +44,10 @@ class AlertParser {
     final u = Utterance(text);
     final r = AlertParseResult()..note = text.trim();
 
-    final sev = PhraseMatcher.best(u, Lexicon.severity, minScore: 0.85);
+    final sev = PhraseMatcher.latest(u, Lexicon.severity, minScore: 0.85);
     if (sev != null) r.severity = Slot(sev.value, sev.score, sev.spoken);
 
-    final type = PhraseMatcher.best(u, Lexicon.alertType, minScore: 0.82);
+    final type = PhraseMatcher.latest(u, Lexicon.alertType, minScore: 0.82);
     if (type != null) r.type = Slot(type.value, type.score, type.spoken);
 
     final crop = PhraseMatcher.best(u, Lexicon.crop);

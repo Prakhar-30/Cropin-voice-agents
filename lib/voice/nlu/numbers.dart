@@ -34,8 +34,18 @@ class NumberExtractor {
   }
 
   /// Finds a 10-digit mobile number, which may be spoken as groups
-  /// ("98450 12345"), single digits, number words or "double 4".
+  /// ("98450 12345"), single digits, number words or "double 4". When the
+  /// speaker corrects themselves, the last number said wins.
   static PhoneValue? extractPhone(Utterance u) {
+    PhoneValue? last;
+    while (true) {
+      final p = _nextPhone(u);
+      if (p == null) return last;
+      last = p;
+    }
+  }
+
+  static PhoneValue? _nextPhone(Utterance u) {
     final tokens = u.tokens;
     var i = 0;
     while (i < tokens.length) {
@@ -127,8 +137,19 @@ class NumberExtractor {
   }
 
   /// Declared area: number + unit ("2 acres", "ಎರಡು ಎಕರೆ", "இரண்டரை ஏக்கர்").
+  /// The last area mentioned wins ("2 acres… sorry, 3 acres").
   static AreaValue? extractArea(Utterance u) {
-    final units = PhraseMatcher.findAll(u, Lexicon.areaUnit, minScore: 0.85);
+    AreaValue? last;
+    while (true) {
+      final a = _nextArea(u);
+      if (a == null) return last;
+      last = a;
+    }
+  }
+
+  static AreaValue? _nextArea(Utterance u) {
+    final units = PhraseMatcher.findAll(u, Lexicon.areaUnit, minScore: 0.85)
+      ..sort((a, b) => a.start.compareTo(b.start));
     for (final m in units) {
       if (!u.isFree(m.start, m.length)) continue;
       final before = numberBefore(u, m.start);

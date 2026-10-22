@@ -12,7 +12,7 @@ class Lexicon {
       'semman', 'sivappu',
     ],
     'Black Soil': [
-      'black soil', 'black', 'black cotton soil', 'kali mitti', 'काली मिट्टी', 'काली',
+      'black soil', 'black', 'black cotton soil', 'black cotton', 'kali mitti', 'काली मिट्टी', 'काली',
       'ಕಪ್ಪು ಮಣ್ಣು', 'ಕಪ್ಪು', 'ಎರೆ ಮಣ್ಣು', 'ಎರೆ', 'kappu mannu', 'கரிசல் மண்', 'கரிசல்',
       'கருப்பு மண்', 'கருப்பு', 'karisal',
     ],
@@ -243,6 +243,30 @@ class Lexicon {
     'project', 'soil', 'irrigation', 'type', 'area', 'plot', 'please', 'add',
     'new', 'create', 'register', 'belongs', 'owner', 'crop', 'it', 'its', 'my',
     'called', 'details', 'contact', 'land', 'size', 'water', 'by', 'under',
+    // natural sentences, disfluencies, honorifics, self-corrections
+    'will', 'be', 'would', 'should', 'shall', 'has', 'have', 'having', 'had', 'he', 'she',
+    'they', 'them', 'him', 'i', 'we', 'you', 'want', 'wants', 'need', 'are', 'was', 'were',
+    'okay', 'ok', 'so', 'um', 'umm', 'uh', 'uhh', 'hmm', 'er', 'like', 'basically', 'just',
+    'actually', 'sorry', 'mean', 'wait', 'not', 'change', 'instead', 'correction', 'also',
+    'around', 'about', 'approximately', 'nearly', 'roughly', 'total', 'totally', 'using',
+    'use', 'uses', 'through', 'via', 'there', 'that', 'this', 'which', 'who', 'whose',
+    'mr', 'mrs', 'ms', 'shri', 'sri', 'smt', 'sir', 'madam', 'yes', 'yeah', 'do', 'does',
+    'source', 'grows', 'growing', 'cultivates', 'cultivating', 'own', 'owns', 'acreage',
+    // Hindi
+    'होगा', 'होगी', 'रहेगा', 'रहेगी', 'था', 'थी', 'उनका', 'उनकी', 'उनके', 'उसका', 'उसकी',
+    'उसके', 'इनका', 'इनकी', 'वो', 'वह', 'यह', 'जो', 'भी', 'लगभग', 'करीब', 'जमीन', 'ज़मीन',
+    'पास', 'होती', 'होता', 'करते', 'करता', 'करती', 'मतलब', 'अच्छा', 'ठीक', 'माफ़', 'माफ',
+    'नहीं', 'गलती', 'श्री', 'श्रीमती', 'साहब', 'जी', 'तो', 'एक', 'कुल', 'द्वारा',
+    // Kannada
+    'ಆಗಿದೆ', 'ಇರುತ್ತೆ', 'ಇರುತ್ತದೆ', 'ಇದ್ದಾರೆ', 'ಅವರದು', 'ಅವನ', 'ಅವರಿಗೆ', 'ಅವರಲ್ಲಿ',
+    'ಸುಮಾರು', 'ಒಟ್ಟು', 'ಸರ್', 'ಅಂದರೆ', 'ಅಂದ್ರೆ', 'ಆಗಿರುತ್ತದೆ', 'ಹಾಗೆ', 'ಬೇಕು', 'ಮಾಡ್ತಾರೆ',
+    'ಮಾಡುತ್ತಾರೆ', 'ಹೊಂದಿದ್ದಾರೆ', 'ಅಲ್ಲ', 'ಇಲ್ಲ', 'ಕ್ಷಮಿಸಿ', 'ತಪ್ಪು', 'ಶ್ರೀ', 'ಶ್ರೀಮತಿ', 'ಓಕೆ',
+    'ಸರಿ', 'ಅದೇ', 'ಈ', 'ಆ', 'ಮೂಲಕ', 'ಬಳಸುತ್ತಾರೆ', 'ರೈತನ', 'ರೈತರ', 'ಮಣ್ಣಿನ',
+    // Tamil
+    'இருக்கு', 'இருக்கிறது', 'உள்ளது', 'அவருடைய', 'அவரிடம்', 'அவருக்கு', 'சுமார்', 'மொத்தம்',
+    'சார்', 'அதாவது', 'வேண்டும்', 'என்பது', 'ஆனது', 'செய்கிறார்', 'செய்கிறார்கள்', 'இல்லை',
+    'மன்னிக்கவும்', 'தப்பு', 'திரு', 'திருமதி', 'சரி', 'ஓகே', 'அந்த', 'மூலம்', 'பயன்படுத்துகிறார்',
+    'விவசாயியின்', 'மண்ணு',
     // Hindi
     'है', 'हैं', 'का', 'की', 'के', 'और', 'में', 'नाम', 'मोबाइल', 'नंबर', 'फोन', 'प्रोजेक्ट',
     'परियोजना', 'मिट्टी', 'सिंचाई', 'किसान', 'खेत', 'जोड़ो', 'जोड़ें', 'नया', 'फसल', 'वाला',
@@ -259,7 +283,7 @@ class Lexicon {
 
   /// Words that introduce a person's name ("name is …", "ಹೆಸರು …").
   static const List<String> nameMarkers = [
-    'name', 'named', 'called', 'नाम', 'ಹೆಸರು', 'ಹೆಸರಿನ', 'பெயர்',
+    'name', 'named', 'called', 'naam', 'नाम', 'ಹೆಸರು', 'ಹೆಸರಿನ', 'ಹೆಸರ', 'பெயர்', 'பேர்',
   ];
 
   /// Words that introduce a project name.
