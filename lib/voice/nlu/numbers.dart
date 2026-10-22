@@ -27,7 +27,7 @@ class NumberExtractor {
   static String? _digitString(Token t) {
     if (t.isDigits) return t.raw;
     final v = Lexicon.numberWords[t.raw];
-    if (v != null && v == v.roundToDouble() && v >= 0 && v <= 9) {
+    if (v != null && v == v.roundToDouble() && v >= 0 && v <= 99) {
       return v.toInt().toString();
     }
     return null;
@@ -56,6 +56,18 @@ class NumberExtractor {
         }
         final d = _digitString(t);
         if (d == null) break;
+        // "ninety eight" -> 98 (people often read a mobile number in pairs)
+        final tens = Lexicon.numberWords[t.raw];
+        if (tens != null && tens >= 20 && tens % 10 == 0 && j + 1 < tokens.length &&
+            !tokens[j + 1].used) {
+          final unit = Lexicon.numberWords[tokens[j + 1].raw];
+          if (unit != null && unit >= 1 && unit <= 9 && unit == unit.roundToDouble()) {
+            parts.add(MapEntry(j, ''));
+            parts.add(MapEntry(j + 1, '${tens.toInt() + unit.toInt()}'));
+            j += 2;
+            continue;
+          }
+        }
         parts.add(MapEntry(j, d));
         j++;
       }

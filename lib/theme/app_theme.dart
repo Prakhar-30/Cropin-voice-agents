@@ -44,6 +44,7 @@ class AppTheme {
         surface: Colors.white,
       ),
       scaffoldBackgroundColor: Colors.white,
+      visualDensity: VisualDensity.compact,
     );
     return base.copyWith(
       appBarTheme: const AppBarTheme(
@@ -51,7 +52,8 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 3,
         centerTitle: true,
-        titleTextStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.white),
+        toolbarHeight: 56,
+        titleTextStyle: TextStyle(fontSize: 19, fontWeight: FontWeight.w500, color: Colors.white),
       ),
       dividerColor: CropinColors.divider,
       checkboxTheme: CheckboxThemeData(

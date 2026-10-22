@@ -22,7 +22,7 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onBell;
 
   @override
-  Size get preferredSize => const Size.fromHeight(78);
+  Size get preferredSize => const Size.fromHeight(66);
 
   @override
   Widget build(BuildContext context) {
@@ -32,15 +32,15 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 78,
+          height: 66,
           child: Row(children: [
             IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 30),
+              icon: const Icon(Icons.menu, color: Colors.white, size: 25),
               onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
             ),
             Expanded(
               child: Container(
-                height: 46,
+                height: 39,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(4),
@@ -51,10 +51,10 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
                       controller: controller,
                       onSubmitted: onSubmitted,
                       textInputAction: TextInputAction.search,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 14),
                       decoration: InputDecoration(
                         hintText: hint,
-                        hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 16),
+                        hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 14),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: const EdgeInsets.only(left: 14, top: 12, bottom: 12),
@@ -64,22 +64,22 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
                   InkResponse(
                     key: const Key('topbar-mic'),
                     onTap: onMic,
-                    radius: 22,
+                    radius: 18,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Icon(Icons.mic, color: CropinColors.primary, size: 26),
+                      child: Icon(Icons.mic, color: CropinColors.primary, size: 21),
                     ),
                   ),
                   InkWell(
                     onTap: () => onSubmitted?.call(controller?.text ?? ''),
                     child: Container(
-                      width: 52,
-                      height: 46,
+                      width: 44,
+                      height: 39,
                       decoration: const BoxDecoration(
                         color: CropinColors.green,
                         borderRadius: BorderRadius.horizontal(right: Radius.circular(4)),
                       ),
-                      child: const Icon(Icons.search, color: Colors.white, size: 30),
+                      child: const Icon(Icons.search, color: Colors.white, size: 25),
                     ),
                   ),
                 ]),
@@ -87,7 +87,7 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 30),
+              icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 25),
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('QR scanner is not part of this voice demo'))),
             ),
@@ -101,7 +101,7 @@ class CropinTopBar extends StatelessWidget implements PreferredSizeWidget {
                     isLabelVisible: n > 0,
                     label: Text('$n'),
                     backgroundColor: CropinColors.attention,
-                    child: const Icon(Icons.notifications_none, color: Colors.white, size: 32),
+                    child: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
                   ),
                 );
               },
@@ -118,7 +118,7 @@ PreferredSizeWidget cropinTitleBar(BuildContext context, String title, {List<Wid
     AppBar(
       title: Text(title),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, size: 28),
+        icon: const Icon(Icons.arrow_back, size: 23),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       actions: actions,

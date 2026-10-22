@@ -128,7 +128,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
                   ]),
                   const SizedBox(height: 12),
                   Text(b.speech(store.language),
-                      style: const TextStyle(fontSize: 16, height: 1.4, color: CropinColors.text)),
+                      style: const TextStyle(fontSize: 14, height: 1.4, color: CropinColors.text)),
                   const SizedBox(height: 12),
                   Row(children: [
                     FilledButton.icon(
@@ -145,10 +145,10 @@ class _BriefingScreenState extends State<BriefingScreen> {
                     ),
                     const Spacer(),
                     Icon(b.fix.isDemo ? Icons.location_searching : Icons.my_location,
-                        size: 16, color: CropinColors.subText),
+                        size: 13, color: CropinColors.subText),
                     const SizedBox(width: 4),
                     Text(b.fix.isDemo ? 'Demo GPS' : 'GPS',
-                        style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+                        style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
                   ]),
                 ]),
               ),
@@ -186,7 +186,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
                         Text(a.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 3),
                         Text(a.text[store.language.code] ?? a.text['en']!,
-                            style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+                            style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
                       ]),
                     ),
                   ]),
@@ -194,7 +194,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 10),
                 child: Text('Visit order (nearest first)',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
               for (final t in b.order)
                 TaskCard(
@@ -216,7 +216,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 3),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
@@ -224,8 +224,8 @@ class _Stat extends StatelessWidget {
           ),
           child: Column(children: [
             Text(value.toString().padLeft(2, '0'),
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: color)),
-            Text(label, style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: color)),
+            Text(label, style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
           ]),
         ),
       );

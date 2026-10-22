@@ -195,7 +195,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
         TextButton(
           onPressed: _save,
           child: Text('Save (${photos.length})',
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
         ),
       ]),
       body: Column(children: [
@@ -232,7 +232,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                       Expanded(
                         child: Text(
                           speech.partial.isEmpty ? strings.listening : speech.partial,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
                         ),
                       ),
                     ]),
@@ -252,7 +252,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text('Tap = photo · ${strings.holdToSpeak}',
-                        style: const TextStyle(color: Colors.white, fontSize: 13)),
+                        style: const TextStyle(color: Colors.white, fontSize: 11)),
                   ),
                 ),
               ),
@@ -294,7 +294,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
   }
 
   Widget _strip() => Container(
-        height: 92,
+        height: 78,
         color: const Color(0xFF111111),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
@@ -308,8 +308,8 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
               onTap: () => setState(() => sel ? selected.remove(p.id) : selected.add(p.id)),
               child: Stack(children: [
                 Container(
-                  width: 76,
-                  height: 76,
+                  width: 65,
+                  height: 65,
                   decoration: BoxDecoration(
                     color: const Color(0xFF2B3A40),
                     border: Border.all(color: sel ? CropinColors.green : Colors.white24, width: sel ? 3 : 1),
@@ -327,16 +327,16 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                     right: 4,
                     bottom: 4,
                     child: CircleAvatar(
-                      radius: 10,
+                      radius: 8,
                       backgroundColor: CropinColors.green,
-                      child: Icon(Icons.mic, size: 13, color: Colors.white),
+                      child: Icon(Icons.mic, size: 11, color: Colors.white),
                     ),
                   ),
                 if (sel)
                   const Positioned(
                     left: 4,
                     top: 4,
-                    child: Icon(Icons.check_circle, size: 18, color: CropinColors.green),
+                    child: Icon(Icons.check_circle, size: 15, color: CropinColors.green),
                   ),
               ]),
             );
@@ -355,7 +355,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 14, color: p.note.isEmpty ? CropinColors.hint : CropinColors.text),
+                    fontSize: 12, color: p.note.isEmpty ? CropinColors.hint : CropinColors.text),
               ),
               if (p.tags.isNotEmpty)
                 Padding(
@@ -368,7 +368,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                           color: CropinColors.voiceFilled.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(t, style: const TextStyle(fontSize: 11)),
+                        child: Text(t, style: const TextStyle(fontSize: 10)),
                       ),
                   ]),
                 ),
@@ -395,13 +395,13 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
               onTap: photos.isEmpty ? null : () => _typeNote('batch'),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 CircleAvatar(
-                  radius: 26,
+                  radius: 21,
                   backgroundColor: recordingFor == 'batch' ? CropinColors.green : Colors.white24,
                   child: const Icon(Icons.playlist_add, color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(selected.isEmpty ? 'Note all' : 'Note ${selected.length}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    style: const TextStyle(color: Colors.white70, fontSize: 10)),
               ]),
             ),
             GestureDetector(
@@ -410,8 +410,8 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
               onLongPressStart: (_) => _shutterLongPressStart(),
               onLongPressEnd: (_) => _endNote(),
               child: Container(
-                width: 78,
-                height: 78,
+                width: 66,
+                height: 66,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 4),
@@ -425,7 +425,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                         : Colors.white,
                   ),
                   child: recordingFor != null && recordingFor != 'batch'
-                      ? const Icon(Icons.mic, color: Colors.white, size: 32)
+                      ? const Icon(Icons.mic, color: Colors.white, size: 26)
                       : null,
                 ),
               ),
@@ -442,14 +442,14 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                   }
                 }),
                 child: const CircleAvatar(
-                  radius: 26,
+                  radius: 21,
                   backgroundColor: Colors.white24,
                   child: Icon(Icons.select_all, color: Colors.white),
                 ),
               ),
               const SizedBox(height: 4),
               Text('${photos.length} photos',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  style: const TextStyle(color: Colors.white70, fontSize: 10)),
             ]),
           ]),
         ),

@@ -22,7 +22,7 @@ class _ListTitle extends StatelessWidget {
           Flexible(
             child: Text(text,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
           ),
           if (trailing != null) ...[
             const SizedBox(width: 12),
@@ -118,13 +118,13 @@ class AssetsTab extends StatelessWidget {
             if (i == 2) {
               return _ListTitle('Assets (${list.length})',
                   trailing: const Row(children: [
-                    StatusDot(status: 'current', size: 22),
+                    StatusDot(status: 'current', size: 18),
                     SizedBox(width: 4),
-                    Text('Current', style: TextStyle(fontSize: 15)),
+                    Text('Current', style: TextStyle(fontSize: 13)),
                     SizedBox(width: 12),
-                    StatusDot(status: 'upcoming', size: 22),
+                    StatusDot(status: 'upcoming', size: 18),
                     SizedBox(width: 4),
-                    Text('Upcoming', style: TextStyle(fontSize: 15)),
+                    Text('Upcoming', style: TextStyle(fontSize: 13)),
                   ]));
             }
             if (i == 3) return list.isEmpty ? const _Empty() : const SizedBox.shrink();
@@ -224,7 +224,7 @@ class ReportsTab extends StatelessWidget {
                     Row(children: [
                       Flexible(
                         child: Text('${a.type} · ${a.severity}',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                       if (a.byVoice) ...[const SizedBox(width: 6), VoiceBadge(label: a.language.toUpperCase())],
                     ]),
@@ -232,9 +232,9 @@ class ReportsTab extends StatelessWidget {
                         style: const TextStyle(color: CropinColors.subText)),
                     if (a.note.isNotEmpty)
                       Text('"${a.note}"',
-                          style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13)),
+                          style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 11)),
                     Text('${formatDate(a.createdAt)} · ${formatTime(a.createdAt)}',
-                        style: const TextStyle(fontSize: 12, color: CropinColors.hint)),
+                        style: const TextStyle(fontSize: 10, color: CropinColors.hint)),
                   ]),
                 ),
               ]),
@@ -273,7 +273,7 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             border: Border.all(color: CropinColors.border),
             borderRadius: BorderRadius.circular(8),
@@ -281,8 +281,8 @@ class _Tile extends StatelessWidget {
           child: Column(children: [
             Text('$value',
                 style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.w700, color: CropinColors.voiceFilled)),
-            Text(label, style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+                    fontSize: 21, fontWeight: FontWeight.w700, color: CropinColors.voiceFilled)),
+            Text(label, style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
           ]),
         ),
       );

@@ -5,6 +5,7 @@ import 'package:cropin_voice_agents/voice/agent_strings.dart';
 import 'package:cropin_voice_agents/voice/nlu/alert_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/form_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/intent_router.dart';
+import 'package:cropin_voice_agents/voice/nlu/nbest.dart';
 import 'package:cropin_voice_agents/voice/nlu/numbers.dart';
 import 'package:cropin_voice_agents/voice/nlu/photo_note_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/search_parser.dart';
@@ -267,6 +268,53 @@ void main() {
         final tags = PhotoNoteParser.tags(ex('photo', l));
         expect(tags, containsAll(['Disease', '15% affected', 'Near borewell']), reason: l.name);
       }
+    });
+  });
+
+  group('accuracy upgrades', () {
+    test('phone read in pairs: "ninety eight forty five …"', () {
+      expect(
+          NumberExtractor.extractPhone(
+                  Utterance('ninety eight forty five zero one two three four five'))!
+              .digits,
+          '9845012345');
+    });
+
+    test('phonetic distance: vowel / close-consonant edits are cheap', () {
+      expect(TextUtils.similarity('tirip', 'trip'), greaterThanOrEqualTo(0.8));
+      expect(TextUtils.similarity('kota', 'tote'), lessThan(0.8));
+    });
+
+    test('N-best: a lower-ranked hypothesis with better slots wins', () {
+      final parser = formParser();
+      final (text, r) = NBest.pick(
+        ['ramesh gowda 98450 12345 red oil drip', 'ramesh gowda 98450 12345 red soil drip'],
+        parser.parse,
+        NBest.formScore,
+      );
+      expect(text, contains('red soil'));
+      expect(r.soil!.value, 'Red Soil');
+      expect(r.unmapped, isEmpty);
+    });
+
+    test('N-best intent: falls through to a hypothesis that has an intent', () {
+      final (_, i) = NBest.intent(['hmm', 'show chilli plots in btm']);
+      expect(i, AgentIntent.search);
+    });
+
+    test('common alert for all plots of a crop in a locality', () {
+      final parser =
+          AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+      final r = parser.parse('raise pest alert on all chilli plots in BTM, medium severity');
+      expect(r.selectAll, isTrue);
+      expect(r.location, 'BTM Layout');
+      expect(r.crop!.value, 'Chilli');
+      expect(r.severity!.value, 'Medium');
+      expect(r.unmapped, isEmpty);
+      final kn = parser.parse('ಬಿಟಿಎಂ ನಲ್ಲಿ ಎಲ್ಲಾ ಮೆಣಸಿನಕಾಯಿ ಜಮೀನುಗಳಿಗೆ ಕೀಟ ಎಚ್ಚರಿಕೆ');
+      expect(kn.selectAll, isTrue);
+      expect(kn.location, 'BTM Layout');
+      expect(kn.type!.value, 'Pest');
     });
   });
 }

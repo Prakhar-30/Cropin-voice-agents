@@ -17,7 +17,7 @@ Every push runs the **Build APK** GitHub Actions workflow, which attaches the AP
 |---|-------|-------|--------------|
 | 1 | **Speak-to-fill forms** | Add Farmer, Add Asset (mic row, FAB or app-bar mic) | One utterance fills name, mobile, project, owner, soil, irrigation, area and unit. Dropdown values are fuzzy-matched across scripts, so "laal mitti", "ಕೆಂಪು ಮಣ್ಣು" and "செம்மண்" all become *Red Soil*. Fields are highlighted green (confident) or amber (please check, with what was heard), and words that couldn't be mapped are listed. If a farmer utterance also describes a plot, the app offers to create the plot next. |
 | 2 | **Voice notes on photos** | Take Photos | Tap the shutter to take a photo. **Hold** it to take a photo and dictate; on release the transcript becomes that photo's comment. Hold **Note all** to apply one note to the selected photos (or the whole batch). Each note is auto-tagged with the issue type, % affected and landmarks such as a borewell. |
-| 3 | **Raise alert by voice** | Raise alert (or say it on Home) | "Raise pest alert on the chilli plot here, high severity" → alert type, severity and crop. GPS then picks the **nearest matching plot**, so the Raise Alert screen opens with that plot ticked and you just hit submit. |
+| 3 | **Raise alert by voice** | Raise alert (or say it on Home) | "Raise pest alert on the chilli plot here, high severity" → alert type, severity and crop; GPS ticks the **nearest matching plot**. Say "… on **all** chilli plots in BTM" (or name a farmer / locality) to tick **every matching plot** and raise one **common alert** for all of them. There's also a **Select all** checkbox for the plots currently shown in the list. |
 | 4 | **Voice search & "What's my day"** | Mic in every search bar; Home "Ask anything" / "What's my day?" | "Show my 2-acre chilli plots in BTM that need attention" returns a filtered list with filter chips. "What's pending today?" reads out overdue and due-today tasks, nearby visits, Crop Health attention counts and the weather advisory, in the chosen language. |
 
 The Home mic is a router: one utterance goes to the right agent (add farmer, add asset, raise alert, photos, search or briefing).
@@ -26,10 +26,12 @@ The Home mic is a router: one utterance goes to the right agent (add farmer, add
 
 * **Speech → text**: Android's on-device recogniser via `speech_to_text`, with `onDevice: true` (`EXTRA_PREFER_OFFLINE`). No audio leaves the phone. It needs the offline speech pack for each language. To install one: Google app → Settings → Voice → Offline speech recognition → download Kannada / Tamil / Hindi / English (India).
 * **Understanding (NLU)**: fully on-device and rule-based, in `lib/voice/nlu/`:
+  * **N-best rescoring**: every alternative transcript the recogniser returns is parsed, and the one that fills the most slots with the fewest unknown words wins ([Ganesan et al., ACL 2021](https://arxiv.org/abs/2106.06519); [Sun et al., 2023](https://arxiv.org/abs/2311.07418));
+  * **phonetically weighted edit distance**: vowel swaps, dropped or added vowels and close consonants (r/l, n/m) cost less than other edits ([Raghuvanshi et al., EMNLP 2019](https://aclanthology.org/D19-3011/));
   * an Indic → Latin transliterator covering Devanagari, Kannada and Tamil, with Tamil voicing rules;
   * a phonetic key that ignores script, aspiration, voicing, vowel length and double letters;
   * a fuzzy phrase matcher that handles agglutinative suffixes (ಜಮೀನಿನಲ್ಲಿ → ಜಮೀನು, வயலில் → வயல்);
-  * number parsing for digits, native digits and number words in all four languages, including "double nine", ಎರಡೂವರೆ, இரண்டரை and डेढ़;
+  * number parsing for digits, native digits and number words in all four languages, including "double nine", mobile numbers read in pairs ("ninety eight forty five …"), ಎರಡೂವರೆ, இரண்டரை and डेढ़;
   * slot parsers for forms, alerts, search and photo notes, plus an intent router.
 * **Text → speech**: the on-device TTS voices through `flutter_tts`.
 * **GPS** works offline. If there's no fix, or the phone is far from the demo plots, the app falls back to a demo location in BTM Layout, Bengaluru. You can change this in *Voice settings*.

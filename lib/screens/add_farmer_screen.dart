@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../data/models.dart';
+import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_strings.dart';
 import '../voice/nlu/form_parser.dart';
+import '../voice/nlu/nbest.dart';
 import '../voice/nlu/slots.dart';
 import '../voice/nlu/utterance.dart';
 import '../widgets/common.dart';
@@ -68,7 +70,9 @@ class _AddFarmerScreenState extends State<AddFarmerScreen> {
   }
 
   void _apply(String text) {
-    final r = FormParser(projects: store.projectRefs, farmers: store.farmerRefs).parse(text);
+    final parser = FormParser(projects: store.projectRefs, farmers: store.farmerRefs);
+    final (_, r) = NBest.pick(
+        SpeechService.instance.hypothesesFor(text), parser.parse, NBest.formScore);
     usedVoice = true;
     setState(() {
       lastResult = r;
@@ -184,26 +188,26 @@ class _AddFarmerScreenState extends State<AddFarmerScreen> {
             onTap: _speak,
           ),
           const Divider(height: 1),
-          const SizedBox(height: 30),
+          const SizedBox(height: 26),
           Center(
             child: Container(
-              width: 104,
-              height: 104,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFFF2F4F5),
                 border: Border.all(color: CropinColors.primary, width: 1.4),
               ),
-              child: const Icon(Icons.add_a_photo_outlined, size: 40, color: CropinColors.primary),
+              child: const Icon(Icons.add_a_photo_outlined, size: 33, color: CropinColors.primary),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 26),
           const SectionGap(),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 22, 18, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Primary Information',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 22),
               UnmappedBanner(words: unmapped, onDismiss: () => setState(() => unmapped = [])),
               VoiceTextField(
@@ -219,7 +223,7 @@ class _AddFarmerScreenState extends State<AddFarmerScreen> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Text(
                       'A farmer named ${duplicate!.name} (${duplicate!.code}) already exists.',
-                      style: const TextStyle(color: CropinColors.attention, fontSize: 13)),
+                      style: const TextStyle(color: CropinColors.attention, fontSize: 11)),
                 ),
               VoiceTextField(label: 'Farmer Code:', controller: code),
               VoiceTextField(
@@ -257,7 +261,7 @@ class _AddFarmerScreenState extends State<AddFarmerScreen> {
         foregroundColor: Colors.white,
         onPressed: _speak,
         tooltip: 'Speak to fill',
-        child: const Icon(Icons.mic, size: 30),
+        child: const Icon(Icons.mic, size: 25),
       ),
       bottomNavigationBar: BottomActions(
         left: SecondaryButton(
@@ -296,18 +300,18 @@ class _ActionRow extends StatelessWidget {
           color: highlight ? const Color(0xFFF4FAEC) : Colors.white,
           padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
           child: Row(children: [
-            Icon(icon, size: 34, color: CropinColors.primary),
+            Icon(icon, size: 28, color: CropinColors.primary),
             const SizedBox(width: 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 const Text('Offline first',
                     style: TextStyle(
-                        fontSize: 15, color: CropinColors.primary, fontWeight: FontWeight.w600)),
+                        fontSize: 13, color: CropinColors.primary, fontWeight: FontWeight.w600)),
                 Text(subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+                    style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
               ]),
             ),
             Container(
@@ -317,7 +321,7 @@ class _ActionRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(pillIcon, color: Colors.white, size: 16),
+                Icon(pillIcon, color: Colors.white, size: 13),
                 const SizedBox(width: 5),
                 Text(pill, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
               ]),
@@ -340,7 +344,7 @@ class _CountryCode extends StatelessWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
-            width: 28,
+            width: 24,
             height: 18,
             child: Column(children: [
               Expanded(child: Container(color: const Color(0xFFFF9933))),
@@ -360,8 +364,8 @@ class _CountryCode extends StatelessWidget {
             ]),
           ),
           const SizedBox(width: 8),
-          const Text('+91', style: TextStyle(fontSize: 18)),
-          const Icon(Icons.keyboard_arrow_down, size: 20),
+          const Text('+91', style: TextStyle(fontSize: 15)),
+          const Icon(Icons.keyboard_arrow_down, size: 16),
         ]),
       );
 }

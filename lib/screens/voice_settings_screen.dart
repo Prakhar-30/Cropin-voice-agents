@@ -54,7 +54,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             subtitle: Text(
               'Speech pack: ${!speech.isReady ? 'checking…' : speech.supports(l) ? 'recogniser supports ${speech.localeFor(l)}' : 'not listed — install offline pack'}'
               '   ·   Voice: ${ttsAvailable[l] == null ? '…' : ttsAvailable[l]! ? 'available' : 'not installed'}',
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 10),
             ),
             trailing: IconButton(
               icon: const Icon(Icons.volume_up_outlined),
@@ -104,14 +104,14 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             '3. For spoken replies: Settings → System → Languages → Text-to-speech → '
             'Speech Services by Google → Install voice data for the same languages.\n\n'
             'Without a pack you can still use every agent by typing, or by tapping an example.',
-            style: TextStyle(fontSize: 14, height: 1.4),
+            style: TextStyle(fontSize: 12, height: 1.4),
           ),
         ),
         if (speech.lastError != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text('Last recogniser message: ${speech.lastError}',
-                style: const TextStyle(color: CropinColors.attention, fontSize: 13)),
+                style: const TextStyle(color: CropinColors.attention, fontSize: 11)),
           ),
       ]),
     );
@@ -127,6 +127,6 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
         child: Text(text,
             style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w700, color: CropinColors.primary)),
+                fontSize: 13, fontWeight: FontWeight.w700, color: CropinColors.primary)),
       );
 }

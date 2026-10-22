@@ -4,10 +4,12 @@ import '../data/app_store.dart';
 import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../services/location_service.dart';
+import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_strings.dart';
 import '../voice/nlu/form_parser.dart';
+import '../voice/nlu/nbest.dart';
 import '../voice/nlu/slots.dart';
 import '../widgets/common.dart';
 import '../widgets/form_fields.dart';
@@ -72,8 +74,9 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
   }
 
   void _apply(String text) {
-    final r = FormParser(projects: store.projectRefs, farmers: store.farmerRefs)
-        .parse(text, extractName: false, extractOwner: true);
+    final parser = FormParser(projects: store.projectRefs, farmers: store.farmerRefs);
+    final (_, r) = NBest.pick(SpeechService.instance.hypothesesFor(text),
+        (h) => parser.parse(h, extractName: false, extractOwner: true), NBest.formScore);
     _applyResult(r);
   }
 
@@ -169,7 +172,7 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: cropinTitleBar(context, 'Add Asset', actions: [
-        IconButton(onPressed: _speak, icon: const Icon(Icons.mic, size: 28), tooltip: 'Speak to fill'),
+        IconButton(onPressed: _speak, icon: const Icon(Icons.mic, size: 23), tooltip: 'Speak to fill'),
       ]),
       body: ListView(
         children: [
@@ -179,39 +182,39 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
               color: const Color(0xFFF4FAEC),
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
               child: Row(children: [
-                const Icon(Icons.record_voice_over_outlined, color: CropinColors.primary, size: 30),
+                const Icon(Icons.record_voice_over_outlined, color: CropinColors.primary, size: 25),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     'Speak to fill · offline · ${store.language.nativeName}\n'
                     '"Plot for <farmer>, red soil, drip, 2 acres"',
-                    style: const TextStyle(fontSize: 14, color: CropinColors.text),
+                    style: const TextStyle(fontSize: 12, color: CropinColors.text),
                   ),
                 ),
-                const Icon(Icons.mic, color: CropinColors.green, size: 30),
+                const Icon(Icons.mic, color: CropinColors.green, size: 25),
               ]),
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 22),
           Center(
             child: Container(
-              width: 104,
-              height: 104,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFFF2F4F5),
                 border: Border.all(color: CropinColors.primary, width: 1.4),
               ),
-              child: const Icon(Icons.add_a_photo_outlined, size: 40, color: CropinColors.primary),
+              child: const Icon(Icons.add_a_photo_outlined, size: 33, color: CropinColors.primary),
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 22),
           const SectionGap(),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 22, 18, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Primary Information',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 22),
               UnmappedBanner(words: unmapped, onDismiss: () => setState(() => unmapped = [])),
               VoiceTextField(label: 'Asset Name', controller: assetName),
@@ -303,7 +306,7 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text('Crop: $crop',
-                      style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+                      style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
                 ),
             ]),
           ),

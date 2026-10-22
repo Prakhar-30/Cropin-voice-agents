@@ -97,7 +97,7 @@ class _HomeShellState extends State<HomeShell> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 const Text('Cropin Grow',
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
+                    style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text('Voice agents · ${AppStore.instance.language.nativeName}',
                     style: const TextStyle(color: Colors.white70)),
@@ -156,7 +156,7 @@ class _BottomNav extends StatelessWidget {
               const SizedBox(height: 3),
               Text(label,
                   style: TextStyle(
-                      color: color, fontSize: 14, fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+                      color: color, fontSize: 12, fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
             ]),
           ),
         ),
@@ -170,12 +170,12 @@ class _BottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Row(children: [
-          item(0, 'Home', (c) => Icon(index == 0 ? Icons.home : Icons.home_outlined, color: c, size: 34)),
+          item(0, 'Home', (c) => Icon(index == 0 ? Icons.home : Icons.home_outlined, color: c, size: 28)),
           item(1, 'Farmers',
-              (c) => Icon(index == 1 ? Icons.person : Icons.person_outline, color: c, size: 34)),
-          item(2, 'Assets', (c) => PlotIcon(size: 30, color: c, filled: index == 2)),
-          item(3, 'Tasks', (c) => Icon(Icons.assignment_outlined, color: c, size: 32)),
-          item(4, 'Reports', (c) => Icon(Icons.insert_chart_outlined, color: c, size: 32)),
+              (c) => Icon(index == 1 ? Icons.person : Icons.person_outline, color: c, size: 28)),
+          item(2, 'Assets', (c) => PlotIcon(size: 25, color: c, filled: index == 2)),
+          item(3, 'Tasks', (c) => Icon(Icons.assignment_outlined, color: c, size: 26)),
+          item(4, 'Reports', (c) => Icon(Icons.insert_chart_outlined, color: c, size: 26)),
         ]),
       ),
     );

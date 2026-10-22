@@ -63,20 +63,20 @@ class _HomeTabState extends State<HomeTab> {
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Regional Analysis is outside this voice demo'))),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 decoration: BoxDecoration(
                   border: Border.all(color: CropinColors.border, width: 1.4),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Row(children: [
-                  Icon(Icons.travel_explore, color: CropinColors.primary, size: 30),
+                  Icon(Icons.travel_explore, color: CropinColors.primary, size: 25),
                   SizedBox(width: 16),
                   Expanded(
                     child: Text('Regional Analysis',
                         style: TextStyle(
-                            fontSize: 19, fontWeight: FontWeight.w600, color: Color(0xFF1F4A3E))),
+                            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1F4A3E))),
                   ),
-                  Icon(Icons.chevron_right, color: CropinColors.subText, size: 30),
+                  Icon(Icons.chevron_right, color: CropinColors.subText, size: 25),
                 ]),
               ),
             ),
@@ -89,10 +89,10 @@ class _HomeTabState extends State<HomeTab> {
               child: Row(children: [
                 const Expanded(
                   child: Text('Farm Intelligence & Advisory',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 ),
-                const Text('(5)', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w500)),
-                Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 30),
+                const Text('(5)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 25),
               ]),
             ),
           ),
@@ -115,14 +115,14 @@ class _HomeTabState extends State<HomeTab> {
                   alignment: Alignment.centerLeft,
                   child: Row(children: [
                     _Metric(store.goodCount.toString().padLeft(2, '0'), 'Good', CropinColors.goodGreen),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 22),
                     _Metric(store.attentionCount.toString().padLeft(2, '0'), 'Needs Attention',
                         CropinColors.attention),
                   ]),
                 ),
                 const SizedBox(height: 6),
                 const Text('Updated 0 Hour ago',
-                    style: TextStyle(color: CropinColors.hint, fontSize: 13)),
+                    style: TextStyle(color: CropinColors.hint, fontSize: 11)),
               ]),
             ),
             _AdvisoryCard(
@@ -135,21 +135,21 @@ class _HomeTabState extends State<HomeTab> {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Icon(Icons.arrow_circle_up, color: CropinColors.goodGreen, size: 22),
+                    Icon(Icons.arrow_circle_up, color: CropinColors.goodGreen, size: 18),
                     SizedBox(width: 4),
                     Text('234.3',
                         style: TextStyle(
-                            fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.goodGreen)),
-                    Text('%', style: TextStyle(fontSize: 18, color: CropinColors.goodGreen)),
-                    SizedBox(width: 28),
+                            fontSize: 28, fontWeight: FontWeight.w700, color: CropinColors.goodGreen)),
+                    Text('%', style: TextStyle(fontSize: 15, color: CropinColors.goodGreen)),
+                    SizedBox(width: 24),
                     Text('00',
                         style: TextStyle(
-                            fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.primary)),
+                            fontSize: 28, fontWeight: FontWeight.w700, color: CropinColors.primary)),
                   ]),
                 ),
                 Text('Forecasted Harvest (vs Re-estimated) · Slow Growth Plots',
-                    style: TextStyle(fontSize: 13)),
-                Text('Updated 15 days ago', style: TextStyle(color: CropinColors.hint, fontSize: 13)),
+                    style: TextStyle(fontSize: 11)),
+                Text('Updated 15 days ago', style: TextStyle(color: CropinColors.hint, fontSize: 11)),
               ]),
             ),
             for (final a in DemoData.advisories)
@@ -173,7 +173,7 @@ class _HomeTabState extends State<HomeTab> {
                 child: Text(a.text[store.language.code] ?? a.text['en']!,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, color: CropinColors.text)),
+                    style: const TextStyle(fontSize: 12, color: CropinColors.text)),
               ),
           ],
           const SizedBox(height: 20),
@@ -196,9 +196,9 @@ class _QuickAction extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(children: [
-              Icon(icon, size: 38, color: CropinColors.primary),
+              Icon(icon, size: 31, color: CropinColors.primary),
               const SizedBox(height: 8),
-              Text(label, style: const TextStyle(fontSize: 15, color: CropinColors.primary)),
+              Text(label, style: const TextStyle(fontSize: 13, color: CropinColors.primary)),
             ]),
           ),
         ),
@@ -222,23 +222,23 @@ class _VoiceCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.graphic_eq, color: CropinColors.green, size: 26),
+          const Icon(Icons.graphic_eq, color: CropinColors.green, size: 21),
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Voice Agents',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
             child: Text('Offline · ${lang.nativeName}',
-                style: const TextStyle(color: Colors.white, fontSize: 12)),
+                style: const TextStyle(color: Colors.white, fontSize: 10)),
           ),
         ]),
         const SizedBox(height: 6),
         const Text('Add farmers & plots, raise alerts, search and get your day — just speak.',
-            style: TextStyle(color: Colors.white70, fontSize: 13)),
+            style: TextStyle(color: Colors.white70, fontSize: 11)),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(
@@ -294,7 +294,7 @@ class _AdvisoryCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 132),
+            constraints: const BoxConstraints(minHeight: 110),
             decoration: BoxDecoration(
               border: Border.all(color: color, width: 1.6),
               borderRadius: BorderRadius.circular(8),
@@ -302,16 +302,16 @@ class _AdvisoryCard extends StatelessWidget {
             child: IntrinsicHeight(
               child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Container(
-                  width: 104,
+                  width: 88,
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
                   ),
                   alignment: Alignment.center,
                   child: CircleAvatar(
-                    radius: 36,
+                    radius: 30,
                     backgroundColor: dark,
-                    child: Icon(icon, color: Colors.white, size: 36),
+                    child: Icon(icon, color: Colors.white, size: 30),
                   ),
                 ),
                 Expanded(
@@ -323,7 +323,7 @@ class _AdvisoryCard extends StatelessWidget {
                       children: [
                         Text(title,
                             style: const TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.w600, color: CropinColors.primary)),
+                                fontSize: 15, fontWeight: FontWeight.w600, color: CropinColors.primary)),
                         const SizedBox(height: 8),
                         child,
                       ],
@@ -333,7 +333,7 @@ class _AdvisoryCard extends StatelessWidget {
                 if (onTap != null)
                   const Padding(
                     padding: EdgeInsets.only(right: 10),
-                    child: Icon(Icons.chevron_right, size: 30, color: CropinColors.primary),
+                    child: Icon(Icons.chevron_right, size: 25, color: CropinColors.primary),
                   ),
               ]),
             ),
@@ -350,7 +350,7 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-        Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: color)),
-        Text(label, style: const TextStyle(fontSize: 14)),
+        Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ]);
 }

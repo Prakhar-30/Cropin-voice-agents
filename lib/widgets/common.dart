@@ -81,7 +81,7 @@ class AreaChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: CropinColors.text)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: CropinColors.text)),
       );
 }
 
@@ -93,18 +93,18 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 50,
+        height: 42,
         child: FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: CropinColors.primary,
             disabledBackgroundColor: const Color(0xFFD5D8DB),
             disabledForegroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           onPressed: onPressed,
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
+            if (icon != null) ...[Icon(icon, size: 16), const SizedBox(width: 8)],
             Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
           ]),
         ),
@@ -118,13 +118,13 @@ class SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 50,
+        height: 42,
         child: OutlinedButton(
           style: OutlinedButton.styleFrom(
             foregroundColor: CropinColors.primary,
             side: const BorderSide(color: CropinColors.primary, width: 1.3),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           onPressed: onPressed,
           child: Text(label),
@@ -176,11 +176,11 @@ class VoiceBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.mic, size: 12, color: CropinColors.voiceFilled),
+          const Icon(Icons.mic, size: 10, color: CropinColors.voiceFilled),
           const SizedBox(width: 3),
           Text(label,
               style: const TextStyle(
-                  fontSize: 11, color: CropinColors.voiceFilled, fontWeight: FontWeight.w600)),
+                  fontSize: 10, color: CropinColors.voiceFilled, fontWeight: FontWeight.w600)),
         ]),
       );
 }

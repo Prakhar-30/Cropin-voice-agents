@@ -4,10 +4,12 @@ import '../data/app_store.dart';
 import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../services/location_service.dart';
+import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_strings.dart';
 import '../voice/nlu/alert_parser.dart';
+import '../voice/nlu/nbest.dart';
 import '../widgets/common.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/top_bar.dart';
@@ -70,16 +72,23 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
   }
 
   void _apply(String text) {
-    final r = AlertParser(farmers: store.farmerRefs).parse(text);
-    // candidate plots: crop / farmer filters, nearest first
+    final parser = AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+    final (_, r) = NBest.pick(
+        SpeechService.instance.hypothesesFor(text), parser.parse, NBest.alertScore);
+    // candidate plots: crop / farmer / locality filters, nearest first
     var candidates = store.assets.where((a) => a.status == 'current').toList();
     if (r.crop != null) candidates = candidates.where((a) => a.crop == r.crop!.value).toList();
     if (r.farmerId != null) {
       candidates = candidates.where((a) => a.farmerId == r.farmerId!.value).toList();
     }
+    if (r.location != null) {
+      candidates = candidates.where((a) => a.locality == r.location).toList();
+    }
     if (fix != null) {
       candidates.sort((a, b) => _distance(a)!.compareTo(_distance(b)!));
     }
+    // "all …" or a farmer / locality without "here" -> every matching plot
+    final many = r.selectAll || (!r.nearMe && (r.farmerId != null || r.location != null));
     byVoice = true;
     setState(() {
       parsed = r;
@@ -89,7 +98,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
       if (candidates.isNotEmpty) {
         selected
           ..clear()
-          ..add(candidates.first.id);
+          ..addAll(many ? candidates.map((a) => a.id) : [candidates.first.id]);
       }
     });
     final strings = AgentStrings(store.language);
@@ -97,12 +106,27 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
       TtsService.instance.speak(strings.notUnderstood, store.language);
       return;
     }
-    final plot = selected.isEmpty ? '-' : store.asset(selected.first)!.name.split('/').first;
+    final first = store.asset(selected.firstOrNull);
+    final plot = selected.length > 1
+        ? strings.plots(selected.length)
+        : '${strings.crop(first?.crop ?? '')} ${first?.name.split('/').first ?? ''}'.trim();
     TtsService.instance.speak(
-      strings.alertReady(strings.alertType(type ?? 'Pest'), strings.severity(severity ?? 'Medium'),
-          '${strings.crop(store.asset(selected.firstOrNull)?.crop ?? '')} $plot'.trim()),
+      strings.alertReady(
+          strings.alertType(type ?? 'Pest'), strings.severity(severity ?? 'Medium'), plot),
       store.language,
     );
+  }
+
+  /// Select / clear every plot currently shown in the list (after search).
+  void _toggleAll(List<Asset> shown) {
+    setState(() {
+      final allOn = shown.isNotEmpty && shown.every((a) => selected.contains(a.id));
+      if (allOn) {
+        selected.removeAll(shown.map((a) => a.id));
+      } else {
+        selected.addAll(shown.map((a) => a.id));
+      }
+    });
   }
 
   Future<void> _raise() async {
@@ -122,7 +146,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: CropinColors.goodGreen, size: 48),
+        icon: const Icon(Icons.check_circle, color: CropinColors.goodGreen, size: 39),
         title: const Text('Alert raised'),
         content: Text('${al.type} · ${al.severity} severity\n'
             '${al.assetIds.map((id) => store.asset(id)?.name ?? id).join(', ')}'),
@@ -140,7 +164,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
           builder: (ctx, setSheet) => Padding(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Alert details', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600)),
+              const Text('Alert details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               VoiceSelectField<String>(
                 label: 'Alert Type',
@@ -189,14 +213,14 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
 
     return Scaffold(
       appBar: cropinTitleBar(context, 'Raise alert', actions: [
-        IconButton(onPressed: _speak, icon: const Icon(Icons.mic, size: 28), tooltip: 'Speak'),
+        IconButton(onPressed: _speak, icon: const Icon(Icons.mic, size: 23), tooltip: 'Speak'),
       ]),
       body: Column(children: [
         Expanded(
           child: ListView(children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(18, 22, 18, 12),
-              child: Text('SELECT PLOT', style: TextStyle(fontSize: 17, letterSpacing: 0.3)),
+              child: Text('SELECT PLOT', style: TextStyle(fontSize: 15, letterSpacing: 0.3)),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -208,17 +232,17 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
                 child: TextField(
                   controller: search,
                   onChanged: (_) => setState(() {}),
-                  style: const TextStyle(fontSize: 17),
+                  style: const TextStyle(fontSize: 15),
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    prefixIcon: const Icon(Icons.search, color: CropinColors.hint, size: 28),
+                    prefixIcon: const Icon(Icons.search, color: CropinColors.hint, size: 23),
                     hintText: 'Search Plot, Croppable area & Unit',
-                    hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 17),
+                    hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 15),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.mic, color: CropinColors.primary),
                       onPressed: _speak,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
                   ),
                 ),
               ),
@@ -229,6 +253,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
               type: type,
               severity: severity,
               plot: store.asset(selected.firstOrNull),
+              selectedCount: selected.length,
               distance: selected.isEmpty ? null : _distance(store.asset(selected.first)!),
               fix: fix,
               locating: locating,
@@ -238,8 +263,27 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
             ),
             const SectionGap(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
-              child: Text('Assets(${list.length})', style: const TextStyle(fontSize: 16)),
+              padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
+              child: Row(children: [
+                Expanded(
+                  child: Text('Assets(${list.length})', style: const TextStyle(fontSize: 12)),
+                ),
+                Text(
+                    list.isNotEmpty && list.every((a) => selected.contains(a.id))
+                        ? 'Clear all'
+                        : 'Select all',
+                    style: const TextStyle(fontSize: 11, color: CropinColors.primary)),
+                Checkbox(
+                  key: const Key('select-all-plots'),
+                  tristate: true,
+                  value: list.isEmpty || !list.any((a) => selected.contains(a.id))
+                      ? false
+                      : list.every((a) => selected.contains(a.id))
+                          ? true
+                          : null,
+                  onChanged: (_) => _toggleAll(list),
+                ),
+              ]),
             ),
             for (final a in ordered) _PlotRow(
               asset: a,
@@ -253,7 +297,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
           padding: const EdgeInsets.only(top: 14),
           color: Colors.white,
           child: Text('${selected.length}assets has been selected',
-              style: const TextStyle(fontSize: 16)),
+              style: const TextStyle(fontSize: 14)),
         ),
         BottomActions(
           left: SecondaryButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
@@ -270,6 +314,7 @@ class _AgentCard extends StatelessWidget {
     required this.type,
     required this.severity,
     required this.plot,
+    required this.selectedCount,
     required this.distance,
     required this.fix,
     required this.locating,
@@ -282,6 +327,7 @@ class _AgentCard extends StatelessWidget {
   final String? type;
   final String? severity;
   final Asset? plot;
+  final int selectedCount;
   final double? distance;
   final LocationFix? fix;
   final bool locating;
@@ -310,12 +356,13 @@ class _AgentCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            const Icon(Icons.mic, color: CropinColors.green, size: 30),
+            const Icon(Icons.mic, color: CropinColors.green, size: 25),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Say "Raise pest alert on the chilli plot here, high severity"\n$gps',
-                style: const TextStyle(fontSize: 14),
+                'Say "Raise pest alert on the chilli plot here, high severity"\n'
+                'or "… on all chilli plots in BTM" for a common alert\n$gps',
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ]),
@@ -327,18 +374,18 @@ class _AgentCard extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(children: [
             SizedBox(
-                width: 84,
-                child: Text(label, style: const TextStyle(color: CropinColors.subText, fontSize: 14))),
+                width: 71,
+                child: Text(label, style: const TextStyle(color: CropinColors.subText, fontSize: 12))),
             Expanded(
               child: Text(value ?? 'Not heard — tap to pick',
                   style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: value == null ? CropinColors.voiceCheck : CropinColors.text)),
             ),
             if (conf != null)
               Icon(conf >= 0.9 ? Icons.check_circle : Icons.help_outline,
-                  size: 18, color: conf >= 0.9 ? CropinColors.voiceFilled : CropinColors.voiceCheck),
+                  size: 15, color: conf >= 0.9 ? CropinColors.voiceFilled : CropinColors.voiceCheck),
             if (trailing != null) trailing,
           ]),
         );
@@ -352,11 +399,11 @@ class _AgentCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.mic, color: CropinColors.voiceFilled, size: 18),
+          const Icon(Icons.mic, color: CropinColors.voiceFilled, size: 15),
           const SizedBox(width: 6),
           Expanded(
             child: Text('"${p.note}"',
-                style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 14)),
+                style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
           ),
           IconButton(
             onPressed: onSpeak,
@@ -369,12 +416,19 @@ class _AgentCard extends StatelessWidget {
             options: DemoData.alertTypes, onChanged: onType),
         _PickRow(label: 'Severity', value: severity, conf: p.severity?.confidence,
             options: DemoData.severities, onChanged: onSeverity),
-        row('Plot', plot == null ? null : '${plot!.name} · ${plot!.crop}',
-            conf: plot == null ? null : (p.nearMe || p.crop != null ? 0.95 : 0.8)),
-        row('Location', distance == null ? gps : '${distance!.toStringAsFixed(2)} km away · $gps'),
+        row(
+            selectedCount > 1 ? 'Plots' : 'Plot',
+            plot == null
+                ? null
+                : selectedCount > 1
+                    ? '$selectedCount plots selected · common alert'
+                    : '${plot!.name} · ${plot!.crop}',
+            conf: plot == null ? null : (p.nearMe || p.crop != null || p.selectAll ? 0.95 : 0.8)),
+        row('Location',
+            distance == null || selectedCount > 1 ? gps : '${distance!.toStringAsFixed(2)} km away · $gps'),
         if (p.unmapped.isNotEmpty)
           Text('Not mapped: ${p.unmapped.join(', ')}',
-              style: const TextStyle(fontSize: 12, color: CropinColors.voiceCheck)),
+              style: const TextStyle(fontSize: 10, color: CropinColors.voiceCheck)),
       ]),
     );
   }
@@ -399,8 +453,8 @@ class _PickRow extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(children: [
           SizedBox(
-              width: 84,
-              child: Text(label, style: const TextStyle(color: CropinColors.subText, fontSize: 14))),
+              width: 71,
+              child: Text(label, style: const TextStyle(color: CropinColors.subText, fontSize: 12))),
           Expanded(
             child: PopupMenuButton<String>(
               onSelected: onChanged,
@@ -409,7 +463,7 @@ class _PickRow extends StatelessWidget {
                 Flexible(
                   child: Text(value ?? 'Not heard — tap to pick',
                       style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: value == null ? CropinColors.voiceCheck : CropinColors.text)),
                 ),
@@ -419,7 +473,7 @@ class _PickRow extends StatelessWidget {
           ),
           if (conf != null)
             Icon(conf! >= 0.9 ? Icons.check_circle : Icons.help_outline,
-                size: 18, color: conf! >= 0.9 ? CropinColors.voiceFilled : CropinColors.voiceCheck),
+                size: 15, color: conf! >= 0.9 ? CropinColors.voiceFilled : CropinColors.voiceCheck),
         ]),
       );
 }
@@ -447,15 +501,15 @@ class _PlotRow extends StatelessWidget {
         child: Column(children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SizedBox(
-              width: 64,
+              width: 54,
               child: Column(children: [
-                const PlotIcon(size: 26, filled: true),
+                const PlotIcon(size: 21, filled: true),
                 const SizedBox(height: 4),
                 Text(asset.areaLabel,
-                    textAlign: TextAlign.center, style: const TextStyle(fontSize: 14)),
+                    textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
                 if (distance != null)
                   Text('${distance!.toStringAsFixed(1)} km',
-                      style: const TextStyle(fontSize: 11, color: CropinColors.subText)),
+                      style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
               ]),
             ),
             const SizedBox(width: 6),
@@ -463,17 +517,17 @@ class _PlotRow extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(asset.name,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600, color: CropinColors.primary)),
+                        fontSize: 14, fontWeight: FontWeight.w600, color: CropinColors.primary)),
                 Text('${asset.variety} (${asset.crop})',
-                    style: const TextStyle(fontSize: 15, color: CropinColors.primary)),
-                Text(f?.name ?? '', style: const TextStyle(fontSize: 15, color: CropinColors.primary)),
+                    style: const TextStyle(fontSize: 13, color: CropinColors.primary)),
+                Text(f?.name ?? '', style: const TextStyle(fontSize: 13, color: CropinColors.primary)),
                 Text(asset.address,
-                    style: const TextStyle(fontSize: 14, color: CropinColors.primary)),
+                    style: const TextStyle(fontSize: 12, color: CropinColors.primary)),
               ]),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: StatusDot(status: asset.status, size: 30),
+              child: StatusDot(status: asset.status, size: 25),
             ),
             Checkbox(value: checked, onChanged: (v) => onChanged(v ?? false)),
           ]),

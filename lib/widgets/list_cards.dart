@@ -25,14 +25,14 @@ class FarmerCard extends StatelessWidget {
       decoration: _card(),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
-          width: 46,
-          height: 46,
+          width: 39,
+          height: 39,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: const Color(0xFFF2F3F4),
             border: Border.all(color: const Color(0xFFDADDE0), width: 2),
           ),
-          child: const Icon(Icons.person_outline, color: CropinColors.subText, size: 30),
+          child: const Icon(Icons.person_outline, color: CropinColors.subText, size: 25),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -41,7 +41,7 @@ class FarmerCard extends StatelessWidget {
               Flexible(
                 child: Text('${farmer.name} (${farmer.code})',
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
               if (farmer.createdByVoice) ...[const SizedBox(width: 6), const VoiceBadge()],
             ]),
@@ -49,10 +49,10 @@ class FarmerCard extends StatelessWidget {
             Text(farmer.address,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15, color: CropinColors.subText)),
+                style: const TextStyle(fontSize: 13, color: CropinColors.subText)),
             const SizedBox(height: 3),
             Text('Assets ($assets) | Projects (${farmer.projectIds.length}) | Forms (0)',
-                style: const TextStyle(fontSize: 15, color: CropinColors.subText)),
+                style: const TextStyle(fontSize: 13, color: CropinColors.subText)),
           ]),
         ),
       ]),
@@ -72,14 +72,14 @@ class AssetCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: _card(),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(padding: EdgeInsets.only(top: 3), child: PlotIcon(size: 26)),
+        const Padding(padding: EdgeInsets.only(top: 3), child: PlotIcon(size: 21)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Flexible(
                 child: Text(asset.name,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
               if (asset.createdByVoice) ...[const SizedBox(width: 6), const VoiceBadge()],
             ]),
@@ -88,14 +88,14 @@ class AssetCard extends StatelessWidget {
                 asset.subVariety.isEmpty
                     ? '${asset.variety} (${asset.crop})'
                     : '${asset.variety} -  ${asset.subVariety}  (${asset.crop})',
-                style: const TextStyle(fontSize: 16, color: CropinColors.text)),
+                style: const TextStyle(fontSize: 14, color: CropinColors.text)),
             const SizedBox(height: 3),
-            Text(f?.name ?? '', style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+            Text(f?.name ?? '', style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
             const SizedBox(height: 2),
             Text(asset.address,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+                style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
             const SizedBox(height: 10),
             Row(children: [
               AreaChip(asset.areaLabel),
@@ -103,12 +103,12 @@ class AssetCard extends StatelessWidget {
               StatusDot(status: asset.status),
               const SizedBox(width: 10),
               if (asset.health == 'attention') ...[
-                const Icon(Icons.warning_amber_rounded, size: 16, color: CropinColors.attention),
+                const Icon(Icons.warning_amber_rounded, size: 13, color: CropinColors.attention),
                 const SizedBox(width: 3),
                 const Flexible(
                   child: Text('Needs attention',
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: CropinColors.attention)),
+                      style: TextStyle(fontSize: 10, color: CropinColors.attention)),
                 ),
               ],
             ]),
@@ -152,16 +152,16 @@ class TaskCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: _card(),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(Icons.assignment_outlined, color: color, size: 28),
+        Icon(Icons.assignment_outlined, color: color, size: 23),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(task.type, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(task.type, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             Text('${a?.name ?? ''} · ${a?.crop ?? ''}',
-                style: const TextStyle(fontSize: 14, color: CropinColors.text)),
+                style: const TextStyle(fontSize: 12, color: CropinColors.text)),
             Text('${f?.name ?? ''} · ${a?.locality ?? ''}',
-                style: const TextStyle(fontSize: 14, color: CropinColors.subText)),
+                style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
             const SizedBox(height: 6),
             Row(children: [
               Container(
@@ -171,15 +171,15 @@ class TaskCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(label,
-                    style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 8),
               Text(formatDate(task.due),
-                  style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+                  style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
               const Spacer(),
               if (distanceKm != null)
                 Text('${distanceKm!.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+                    style: const TextStyle(fontSize: 10, color: CropinColors.subText)),
             ]),
           ]),
         ),
@@ -201,13 +201,13 @@ class ListHeader extends StatelessWidget {
         child: Row(children: [
           if (buttonLabel.isNotEmpty)
             SizedBox(
-              height: 46,
+              height: 39,
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: CropinColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                   padding: const EdgeInsets.symmetric(horizontal: 18),
-                  textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                 ),
                 onPressed: onAdd,
                 child: Text(buttonLabel),
@@ -224,13 +224,13 @@ class ListHeader extends StatelessWidget {
                   onPressed: () {},
                   icon: const Icon(Icons.unfold_more, color: CropinColors.text),
                   label: const Text('Sort',
-                      style: TextStyle(color: CropinColors.primary, fontSize: 17)),
+                      style: TextStyle(color: CropinColors.primary, fontSize: 15)),
                 ),
                 TextButton.icon(
                   onPressed: onFilter,
                   icon: const Icon(Icons.filter_alt_outlined, color: CropinColors.primary),
                   label: const Text('Filter',
-                      style: TextStyle(color: CropinColors.primary, fontSize: 17)),
+                      style: TextStyle(color: CropinColors.primary, fontSize: 15)),
                 ),
               ]),
             ),
@@ -259,13 +259,13 @@ class ActiveFilterBar extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.mic, size: 16, color: CropinColors.voiceFilled),
+          const Icon(Icons.mic, size: 13, color: CropinColors.voiceFilled),
           const SizedBox(width: 6),
           Expanded(
             child: Text('"$heard"',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
+                style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
           ),
           InkWell(
               onTap: onClear,
@@ -286,7 +286,7 @@ class ActiveFilterBar extends StatelessWidget {
                   border: Border.all(color: CropinColors.voiceFilled),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text(c, style: const TextStyle(fontSize: 13)),
+                child: Text(c, style: const TextStyle(fontSize: 11)),
               ),
           ]),
         ],

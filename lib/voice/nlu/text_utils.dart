@@ -85,11 +85,48 @@ class TextUtils {
     return prev[b.length];
   }
 
-  /// 0..1 similarity between two phonetic keys.
+  static const _vowels = 'aeiou';
+  static const _closePairs = {'rl', 'lr', 'nm', 'mn', 'vp', 'pv', 'ie', 'ei', 'uo', 'ou'};
+
+  /// Phonetically weighted edit distance (after Raghuvanshi et al., "Entity
+  /// resolution for noisy ASR transcripts", EMNLP 2019): recognisers and
+  /// transliteration mostly confuse vowels and close consonants, and add or
+  /// drop vowels (Tamil "டிரிப்" -> "tirip" for "drip"), so those edits are
+  /// cheaper than an arbitrary consonant swap.
+  static double weightedDistance(String a, String b) {
+    if (a == b) return 0;
+    double indel(int c) => _vowels.contains(String.fromCharCode(c)) ? 0.5 : 1.0;
+    double sub(int x, int y) {
+      if (x == y) return 0;
+      final sx = String.fromCharCode(x), sy = String.fromCharCode(y);
+      if (_vowels.contains(sx) && _vowels.contains(sy)) return 0.4;
+      if (_closePairs.contains('$sx$sy')) return 0.5;
+      return 1;
+    }
+
+    var prev = List<double>.filled(b.length + 1, 0);
+    for (var j = 1; j <= b.length; j++) {
+      prev[j] = prev[j - 1] + indel(b.codeUnitAt(j - 1));
+    }
+    for (var i = 1; i <= a.length; i++) {
+      final cur = List<double>.filled(b.length + 1, 0);
+      cur[0] = prev[0] + indel(a.codeUnitAt(i - 1));
+      for (var j = 1; j <= b.length; j++) {
+        cur[j] = math.min(
+          math.min(cur[j - 1] + indel(b.codeUnitAt(j - 1)), prev[j] + indel(a.codeUnitAt(i - 1))),
+          prev[j - 1] + sub(a.codeUnitAt(i - 1), b.codeUnitAt(j - 1)),
+        );
+      }
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+
+  /// 0..1 similarity between two phonetic keys (phonetically weighted).
   static double similarity(String a, String b) {
     if (a.isEmpty || b.isEmpty) return 0;
     if (a == b) return 1;
-    final d = levenshtein(a, b);
-    return 1 - d / math.max(a.length, b.length);
+    final d = weightedDistance(a, b);
+    return (1 - d / math.max(a.length, b.length)).clamp(0.0, 1.0);
   }
 }

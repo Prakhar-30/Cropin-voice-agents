@@ -30,6 +30,8 @@ class SearchQuery {
       taskStatus != null ||
       farmerId != null;
 
+  double get score => describe().length + (entity != null ? 0.3 : 0) - 0.4 * unmapped.length;
+
   /// Human-readable filter chips.
   List<String> describe() => [
         if (crop != null) crop!,

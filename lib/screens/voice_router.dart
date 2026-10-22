@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../data/demo_data.dart';
+import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../voice/agent_strings.dart';
 import '../voice/nlu/intent_router.dart';
+import '../voice/nlu/nbest.dart';
 import '../voice/nlu/search_parser.dart';
 import '../widgets/voice_sheet.dart';
 import 'add_asset_screen.dart';
@@ -37,10 +39,10 @@ class VoiceRouter {
     await route(context, text, defaultEntity: defaultEntity);
   }
 
-  static Future<void> route(BuildContext context, String text, {SearchEntity? defaultEntity}) async {
+  static Future<void> route(BuildContext context, String spoken, {SearchEntity? defaultEntity}) async {
     final store = AppStore.instance;
     final strings = AgentStrings(store.language);
-    final intent = IntentRouter.detect(text);
+    final (text, intent) = NBest.intent(SpeechService.instance.hypothesesFor(spoken));
     final nav = Navigator.of(context);
 
     switch (intent) {
@@ -74,7 +76,9 @@ class VoiceRouter {
 
   static void _search(BuildContext context, String text, SearchEntity? defaultEntity) {
     final store = AppStore.instance;
-    final q = searchParser().parse(text, defaultEntity: defaultEntity);
+    final parser = searchParser();
+    final (_, q) = NBest.pick(SpeechService.instance.hypothesesFor(text),
+        (h) => parser.parse(h, defaultEntity: defaultEntity), NBest.searchScore);
     q.entity ??= defaultEntity ?? SearchEntity.assets;
     NavController.instance.applySearch(q);
     final n = switch (q.entity!) {

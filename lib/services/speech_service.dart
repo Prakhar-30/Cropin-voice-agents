@@ -26,6 +26,9 @@ class SpeechService extends ChangeNotifier {
 
   SpeechState state = SpeechState.idle;
   String partial = '';
+
+  /// Alternative transcripts of the last utterance, best first (N-best).
+  List<String> alternates = [];
   String? lastError;
   double soundLevel = 0;
   List<LocaleName> installedLocales = [];
@@ -75,6 +78,7 @@ class SpeechService extends ChangeNotifier {
     if (!await init()) return false;
     if (_stt.isListening) await _stt.cancel();
     partial = '';
+    alternates = [];
     lastError = null;
     _onResult = onResult;
     _finalCompleter = Completer<String>();
@@ -119,6 +123,14 @@ class SpeechService extends ChangeNotifier {
     }
   }
 
+  /// Hypotheses to try for [chosen]: the recogniser's N-best list when the
+  /// text came straight from speech, otherwise just the (typed/edited) text.
+  List<String> hypothesesFor(String chosen) {
+    final c = chosen.trim();
+    if (alternates.isEmpty || !alternates.any((a) => a.trim() == c)) return [c];
+    return [c, ...alternates.where((a) => a.trim() != c)];
+  }
+
   Future<void> cancel() async {
     await _stt.cancel();
     _complete(partial);
@@ -128,6 +140,12 @@ class SpeechService extends ChangeNotifier {
 
   void _handleResult(SpeechRecognitionResult r) {
     partial = r.recognizedWords;
+    final alts = <String>[];
+    for (final a in r.alternates) {
+      final w = a.recognizedWords.trim();
+      if (w.isNotEmpty && !alts.contains(w)) alts.add(w);
+    }
+    if (alts.isNotEmpty) alternates = alts;
     _onResult?.call(partial, r.finalResult);
     if (r.finalResult) {
       _complete(partial);

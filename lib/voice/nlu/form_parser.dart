@@ -30,6 +30,10 @@ class FormParseResult {
       ];
 
   int get filledCount => _all.length;
+
+  /// Used to rank recogniser hypotheses: confident slots up, unknown words down.
+  double get score =>
+      _all.fold<double>(0, (s, slot) => s + slot.confidence) - 0.4 * unmapped.length;
   int get needsCheckCount => _all.where((s) => s.needsCheck).length;
   bool get isEmpty => filledCount == 0;
 

@@ -9,8 +9,21 @@ class AlertParseResult {
   Slot<String>? crop;
   Slot<String>? farmerId;
   bool nearMe = false;
+
+  /// "all chilli plots" -> select every matching plot, not just the nearest.
+  bool selectAll = false;
+  String? location;
   String note = '';
   List<String> unmapped = [];
+
+  double get score =>
+      (type?.confidence ?? 0) +
+      (severity?.confidence ?? 0) +
+      (crop?.confidence ?? 0) +
+      (farmerId?.confidence ?? 0) +
+      (nearMe ? 0.5 : 0) +
+      (location != null ? 0.8 : 0) -
+      0.4 * unmapped.length;
 
   @override
   String toString() =>
@@ -21,8 +34,11 @@ class AlertParseResult {
 /// "Raise pest alert on the chilli plot here, high severity"
 /// -> type Pest, severity High, crop Chilli, use GPS for the nearest plot.
 class AlertParser {
-  AlertParser({required this.farmers});
+  AlertParser({required this.farmers, this.locations = const {}});
   final List<EntityRef> farmers;
+
+  /// canonical locality -> spoken aliases
+  final Map<String, List<String>> locations;
 
   AlertParseResult parse(String text) {
     final u = Utterance(text);
@@ -38,6 +54,11 @@ class AlertParser {
     if (crop != null) r.crop = Slot(crop.value, crop.score, crop.spoken);
 
     r.nearMe = PhraseMatcher.consumeAll(u, {'here': Lexicon.here}, minScore: 0.9).isNotEmpty;
+    r.selectAll = PhraseMatcher.consumeAll(u, {'all': Lexicon.all}, minScore: 0.95).isNotEmpty;
+    if (locations.isNotEmpty) {
+      final loc = PhraseMatcher.best(u, locations, minScore: 0.85);
+      if (loc != null) r.location = loc.value;
+    }
 
     final farmer = FormParser.matchFarmer(u, farmers);
     if (farmer != null) r.farmerId = farmer;
@@ -46,7 +67,9 @@ class AlertParser {
     PhraseMatcher.consumeAll(u, Lexicon.entity, minScore: 0.9);
     u.consumeFillers();
     r.unmapped = u.leftovers()
-        .where((w) => !const {'severity', 'level', 'ತೀವ್ರತೆ', 'தீவிரம்', 'गंभीरता'}.contains(w))
+        .where((w) => !const {
+              'severity', 'level', 'ತೀವ್ರತೆ', 'தீவிரம்', 'गंभीरता', 'ನಲ್ಲಿ', 'ಗಳು', 'பகுதியில்',
+            }.contains(w))
         .toList();
     return r;
   }

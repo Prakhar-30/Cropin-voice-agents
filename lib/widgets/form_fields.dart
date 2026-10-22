@@ -23,15 +23,15 @@ class FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: CropinColors.text)),
-          if (required) const Text('*', style: TextStyle(color: CropinColors.required, fontSize: 15)),
+          Text(label, style: const TextStyle(fontSize: 13, color: CropinColors.text)),
+          if (required) const Text('*', style: TextStyle(color: CropinColors.required, fontSize: 13)),
           const Spacer(),
           if (mark != VoiceMark.none)
             Flexible(
               flex: 3,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(mark == VoiceMark.filled ? Icons.mic : Icons.help_outline,
-                    size: 14,
+                    size: 11,
                     color: mark == VoiceMark.filled ? CropinColors.voiceFilled : CropinColors.voiceCheck),
                 const SizedBox(width: 3),
                 Flexible(
@@ -43,7 +43,7 @@ class FieldLabel extends StatelessWidget {
                             : 'check · heard "$heard"',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       color: mark == VoiceMark.filled ? CropinColors.voiceFilled : CropinColors.voiceCheck,
                     ),
                   ),
@@ -111,12 +111,12 @@ class VoiceTextField extends StatelessWidget {
                   controller: controller,
                   keyboardType: keyboardType,
                   onChanged: (_) => onEdited?.call(),
-                  style: const TextStyle(fontSize: 18, color: CropinColors.text),
+                  style: const TextStyle(fontSize: 15, color: CropinColors.text),
                   decoration: InputDecoration(
                     hintText: hint,
-                    hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 18),
+                    hintStyle: const TextStyle(color: CropinColors.hint, fontSize: 15),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   ),
                 ),
               ),
@@ -175,17 +175,17 @@ class VoiceSelectField<T> extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               decoration: _boxFor(mark),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(children: [
                 Expanded(
                   child: Text(
                     value == null ? 'Select' : display(value as T),
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 18, color: value == null ? CropinColors.hint : CropinColors.text),
+                        fontSize: 15, color: value == null ? CropinColors.hint : CropinColors.text),
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down, color: CropinColors.subText, size: 28),
+                const Icon(Icons.keyboard_arrow_down, color: CropinColors.subText, size: 23),
               ]),
             ),
           ),
@@ -225,7 +225,7 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
           child: Row(children: [
             Expanded(
                 child: Text(widget.title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
             IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
           ]),
         ),
@@ -285,14 +285,14 @@ class UnmappedBanner extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.hearing_disabled_outlined, size: 18, color: CropinColors.voiceCheck),
+          const Icon(Icons.hearing_disabled_outlined, size: 15, color: CropinColors.voiceCheck),
           const SizedBox(width: 6),
           const Expanded(
             child: Text("Couldn't map these words — fill manually if needed",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
           ),
           if (onDismiss != null)
-            InkWell(onTap: onDismiss, child: const Icon(Icons.close, size: 18)),
+            InkWell(onTap: onDismiss, child: const Icon(Icons.close, size: 15)),
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
@@ -304,7 +304,7 @@ class UnmappedBanner extends StatelessWidget {
                 border: Border.all(color: CropinColors.voiceCheck),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text(w, style: const TextStyle(fontSize: 13)),
+              child: Text(w, style: const TextStyle(fontSize: 11)),
             ),
         ]),
       ]),

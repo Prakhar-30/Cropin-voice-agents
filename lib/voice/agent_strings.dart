@@ -42,6 +42,9 @@ class AgentStrings {
       '$plot ಮೇಲೆ $type ಎಚ್ಚರಿಕೆ, ತೀವ್ರತೆ $severity. ಸಲ್ಲಿಸಲು Raise alert ಒತ್ತಿ.',
       '$plot இல் $type எச்சரிக்கை, தீவிரம் $severity. சமர்ப்பிக்க Raise alert அழுத்தவும்.');
 
+  String plots(int n) =>
+      _pick('$n plots', '$n खेतों', '$n ಜಮೀನುಗಳು', '$n நிலங்கள்');
+
   String get alertSubmitted => _pick('Alert raised successfully.', 'अलर्ट सफलतापूर्वक भेजा गया।',
       'ಎಚ್ಚರಿಕೆ ಯಶಸ್ವಿಯಾಗಿ ಸಲ್ಲಿಸಲಾಗಿದೆ.', 'எச்சரிக்கை வெற்றிகரமாக அனுப்பப்பட்டது.');
 

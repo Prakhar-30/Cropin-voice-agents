@@ -114,7 +114,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                 children: [
                   Center(
                     child: Container(
-                      width: 40,
+                      width: 34,
                       height: 4,
                       decoration: BoxDecoration(
                           color: CropinColors.border, borderRadius: BorderRadius.circular(2)),
@@ -125,12 +125,12 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(widget.title,
-                            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         if (widget.subtitle != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(widget.subtitle!,
-                                style: const TextStyle(fontSize: 13, color: CropinColors.subText)),
+                                style: const TextStyle(fontSize: 11, color: CropinColors.subText)),
                           ),
                       ]),
                     ),
@@ -148,8 +148,8 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                           final level = (speech.soundLevel.clamp(-2, 10) + 2) / 12;
                           final grow = listening ? 10 + 14 * pulse.value + 18 * level : 0.0;
                           return Container(
-                            width: 84 + grow,
-                            height: 84 + grow,
+                            width: 71 + grow,
+                            height: 71 + grow,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
@@ -160,14 +160,14 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                           );
                         },
                         child: Container(
-                          width: 76,
-                          height: 76,
+                          width: 65,
+                          height: 65,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: listening ? CropinColors.green : CropinColors.primary,
                           ),
                           child: Icon(listening ? Icons.mic : Icons.mic_none,
-                              color: Colors.white, size: 38),
+                              color: Colors.white, size: 31),
                         ),
                       ),
                     ),
@@ -180,7 +180,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                             ? 'Starting on-device recogniser…'
                             : strings.tapToSpeak,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 15, color: CropinColors.subText),
+                    style: const TextStyle(fontSize: 13, color: CropinColors.subText),
                   ),
                   if (!typing && speech.partial.isNotEmpty) ...[
                     const SizedBox(height: 10),
@@ -191,7 +191,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(speech.partial,
-                          style: const TextStyle(fontSize: 17, color: CropinColors.text)),
+                          style: const TextStyle(fontSize: 15, color: CropinColors.text)),
                     ),
                   ],
                   if (err != null) ...[
@@ -203,9 +203,9 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Icon(Icons.info_outline, color: CropinColors.voiceCheck, size: 20),
+                        const Icon(Icons.info_outline, color: CropinColors.voiceCheck, size: 16),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(err, style: const TextStyle(fontSize: 13))),
+                        Expanded(child: Text(err, style: const TextStyle(fontSize: 11))),
                       ]),
                     ),
                   ],
@@ -256,9 +256,9 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(children: [
-                              const Icon(Icons.format_quote, size: 18, color: CropinColors.hint),
+                              const Icon(Icons.format_quote, size: 15, color: CropinColors.hint),
                               const SizedBox(width: 6),
-                              Expanded(child: Text(e, style: const TextStyle(fontSize: 14))),
+                              Expanded(child: Text(e, style: const TextStyle(fontSize: 12))),
                             ]),
                           ),
                         ),
@@ -288,11 +288,11 @@ class _OfflineBadge extends StatelessWidget {
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(offline ? Icons.cloud_off : Icons.cloud_queue,
-            size: 14, color: offline ? CropinColors.voiceFilled : CropinColors.voiceCheck),
+            size: 11, color: offline ? CropinColors.voiceFilled : CropinColors.voiceCheck),
         const SizedBox(width: 4),
         Text(offline ? 'Offline · on-device' : 'Prefer offline',
             style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: offline ? CropinColors.voiceFilled : CropinColors.voiceCheck)),
       ]),
