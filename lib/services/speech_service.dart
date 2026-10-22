@@ -83,14 +83,14 @@ class SpeechService extends ChangeNotifier {
     try {
       await _stt.listen(
         onResult: _handleResult,
-        localeId: localeFor(lang),
-        listenFor: const Duration(seconds: 45),
-        pauseFor: const Duration(seconds: 4),
         onSoundLevelChange: (level) {
           soundLevel = level;
           notifyListeners();
         },
         listenOptions: SpeechListenOptions(
+          localeId: localeFor(lang),
+          listenFor: const Duration(seconds: 45),
+          pauseFor: const Duration(seconds: 4),
           partialResults: true,
           onDevice: offlineOnly,
           listenMode: ListenMode.dictation,

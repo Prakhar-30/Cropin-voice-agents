@@ -101,14 +101,16 @@ class AssetCard extends StatelessWidget {
               AreaChip(asset.areaLabel),
               const SizedBox(width: 10),
               StatusDot(status: asset.status),
-              const Spacer(),
-              if (asset.health == 'attention')
-                const Row(children: [
-                  Icon(Icons.warning_amber_rounded, size: 16, color: CropinColors.attention),
-                  SizedBox(width: 3),
-                  Text('Needs attention',
+              const SizedBox(width: 10),
+              if (asset.health == 'attention') ...[
+                const Icon(Icons.warning_amber_rounded, size: 16, color: CropinColors.attention),
+                const SizedBox(width: 3),
+                const Flexible(
+                  child: Text('Needs attention',
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: CropinColors.attention)),
-                ]),
+                ),
+              ],
             ]),
           ]),
         ),
@@ -204,6 +206,7 @@ class ListHeader extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: CropinColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
                 ),
                 onPressed: onAdd,
@@ -211,15 +214,26 @@ class ListHeader extends StatelessWidget {
               ),
             ),
           const Spacer(),
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.unfold_more, color: CropinColors.text),
-            label: const Text('Sort', style: TextStyle(color: CropinColors.primary, fontSize: 17)),
-          ),
-          TextButton.icon(
-            onPressed: onFilter,
-            icon: const Icon(Icons.filter_alt_outlined, color: CropinColors.primary),
-            label: const Text('Filter', style: TextStyle(color: CropinColors.primary, fontSize: 17)),
+          Flexible(
+            flex: 3,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.unfold_more, color: CropinColors.text),
+                  label: const Text('Sort',
+                      style: TextStyle(color: CropinColors.primary, fontSize: 17)),
+                ),
+                TextButton.icon(
+                  onPressed: onFilter,
+                  icon: const Icon(Icons.filter_alt_outlined, color: CropinColors.primary),
+                  label: const Text('Filter',
+                      style: TextStyle(color: CropinColors.primary, fontSize: 17)),
+                ),
+              ]),
+            ),
           ),
         ]),
       );

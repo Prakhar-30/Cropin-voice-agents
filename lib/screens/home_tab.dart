@@ -110,12 +110,16 @@ class _HomeTabState extends State<HomeTab> {
                 NavController.instance.applySearch(q);
               },
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  _Metric(store.goodCount.toString().padLeft(2, '0'), 'Good', CropinColors.goodGreen),
-                  const SizedBox(width: 26),
-                  _Metric(store.attentionCount.toString().padLeft(2, '0'), 'Needs Attention',
-                      CropinColors.attention),
-                ]),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(children: [
+                    _Metric(store.goodCount.toString().padLeft(2, '0'), 'Good', CropinColors.goodGreen),
+                    const SizedBox(width: 26),
+                    _Metric(store.attentionCount.toString().padLeft(2, '0'), 'Needs Attention',
+                        CropinColors.attention),
+                  ]),
+                ),
                 const SizedBox(height: 6),
                 const Text('Updated 0 Hour ago',
                     style: TextStyle(color: CropinColors.hint, fontSize: 13)),
@@ -127,22 +131,24 @@ class _HomeTabState extends State<HomeTab> {
               icon: Icons.agriculture_outlined,
               title: 'Yield & Growth',
               child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Icon(Icons.arrow_circle_up, color: CropinColors.goodGreen, size: 22),
-                  SizedBox(width: 4),
-                  Text('234.3',
-                      style: TextStyle(
-                          fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.goodGreen)),
-                  Text('%', style: TextStyle(fontSize: 18, color: CropinColors.goodGreen)),
-                  Spacer(),
-                  Text('00',
-                      style: TextStyle(
-                          fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.primary)),
-                ]),
-                Row(children: [
-                  Expanded(child: Text('Forecasted Harvest\n(vs Re-estimated)', style: TextStyle(fontSize: 13))),
-                  Text('Slow Growth Plots', style: TextStyle(fontSize: 13)),
-                ]),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Icon(Icons.arrow_circle_up, color: CropinColors.goodGreen, size: 22),
+                    SizedBox(width: 4),
+                    Text('234.3',
+                        style: TextStyle(
+                            fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.goodGreen)),
+                    Text('%', style: TextStyle(fontSize: 18, color: CropinColors.goodGreen)),
+                    SizedBox(width: 28),
+                    Text('00',
+                        style: TextStyle(
+                            fontSize: 32, fontWeight: FontWeight.w700, color: CropinColors.primary)),
+                  ]),
+                ),
+                Text('Forecasted Harvest (vs Re-estimated) · Slow Growth Plots',
+                    style: TextStyle(fontSize: 13)),
                 Text('Updated 15 days ago', style: TextStyle(color: CropinColors.hint, fontSize: 13)),
               ]),
             ),

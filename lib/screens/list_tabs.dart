@@ -19,9 +19,21 @@ class _ListTitle extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
         child: Row(children: [
-          Text(text, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          if (trailing != null) trailing!,
+          Flexible(
+            child: Text(text,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
+            ),
+          ],
         ]),
       );
 }
