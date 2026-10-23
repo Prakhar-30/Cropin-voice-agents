@@ -38,8 +38,13 @@ class IntentRouter {
     // words appear — unless the user explicitly asked to show / search.
     final searchVerb = s('search') >= 0.9;
 
+    final alertWord = s('raise_alert') >= 0.9;
+    final alertType = _score(u, Lexicon.alertType.values.expand((e) => e).toList()) >= 0.85;
+    final severity = _score(u, Lexicon.severity.values.expand((e) => e).toList()) >= 0.9;
+    final alertLike = alertWord || (alertType && severity);
+
     // "Assign plot CA-1 to Sunita Devi" / "… Sunita Devi ko assign karo"
-    if (s('assign') >= 0.9 && (farmerWord || plotWord || _mentionsFarmer(u))) {
+    if (!alertLike && s('assign') >= 0.9 && (farmerWord || plotWord || _mentionsFarmer(u))) {
       return AgentIntent.assignPlot;
     }
     final labels = _score(u, Lexicon.farmerLabels) >= 0.9;
@@ -51,10 +56,7 @@ class IntentRouter {
     }
     if (s('add_asset') >= 0.9 || (add && plotWord)) return AgentIntent.addAsset;
 
-    final alertWord = s('raise_alert') >= 0.9;
-    final alertType = _score(u, Lexicon.alertType.values.expand((e) => e).toList()) >= 0.85;
-    final severity = _score(u, Lexicon.severity.values.expand((e) => e).toList()) >= 0.9;
-    if (alertWord || (alertType && severity)) return AgentIntent.raiseAlert;
+    if (alertLike) return AgentIntent.raiseAlert;
 
     // "add Ramesh Kumar to the paddy project": adding without a plot word is a farmer.
     if (add && !plotWord && !searchVerb) return AgentIntent.addFarmer;

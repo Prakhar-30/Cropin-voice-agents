@@ -7,6 +7,7 @@ import 'package:cropin_voice_agents/voice/nlu/assign_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/dictation.dart';
 import 'package:cropin_voice_agents/voice/nlu/form_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/intent_router.dart';
+import 'package:cropin_voice_agents/voice/nlu/lexicon.dart';
 import 'package:cropin_voice_agents/voice/nlu/nbest.dart';
 import 'package:cropin_voice_agents/voice/nlu/numbers.dart';
 import 'package:cropin_voice_agents/voice/nlu/photo_note_parser.dart';
@@ -614,7 +615,24 @@ void main() {
       const said = 'ऐड फार्मर रमेश कुमार मोबाइल 9845012345 धान प्रोजेक्ट';
       expect(IntentRouter.detect(said), AgentIntent.addFarmer);
       final r = formParser().parse(said);
-      expect(r.name!.value, 'Ramesh Kumar');
+      // TEMP diagnostic: which lexicon entry claims "कुमार"?
+      final diag = <String>[];
+      final maps = <String, Map<String, List<String>>>{
+        'soil': Lexicon.soil, 'irrigation': Lexicon.irrigation, 'crop': Lexicon.crop,
+        'season': Lexicon.season, 'intent': Lexicon.intent, 'entity': Lexicon.entity,
+        'alertType': Lexicon.alertType, 'severity': Lexicon.severity,
+        'taskStatus': Lexicon.taskStatus, 'comparator': Lexicon.comparator,
+        'projectMarkers': {'m': Lexicon.projectMarkers},
+        'projects': {for (final p in store.projectRefs) p.id: [p.name]},
+      };
+      maps.forEach((k, m) {
+        for (final x in PhraseMatcher.findAll(Utterance(said), m, minScore: 0.5)) {
+          if (x.spoken.contains('कुमार')) diag.add('$k:${x.value}:${x.score}:${x.spoken}');
+        }
+      });
+      diag.add('key=${TextUtils.phoneticKey('कुमार')} filler=${Utterance.isFiller('कुमार')} '
+          'num=${Lexicon.numberWords['कुमार']} unmapped=${r.unmapped}');
+      expect(r.name!.value, 'Ramesh Kumar', reason: diag.join(' | '));
       expect(r.phone!.value, '9845012345');
       expect(r.projectId!.value, 'p5');
     });
