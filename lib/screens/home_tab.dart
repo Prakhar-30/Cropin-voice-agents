@@ -51,7 +51,6 @@ class _HomeTabState extends State<HomeTab> {
           ]),
           const SizedBox(height: 16),
           const SectionGap(height: 8),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
             child: InkWell(
