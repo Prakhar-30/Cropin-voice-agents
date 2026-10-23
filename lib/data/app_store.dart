@@ -24,7 +24,7 @@ class AppStore extends ChangeNotifier {
   final List<PhotoRecord> photos = [];
   List<Project> get projects => DemoData.projects;
 
-  AgentLanguage _language = AgentLanguage.kannada;
+  AgentLanguage _language = AgentLanguage.english;
   AgentLanguage get language => _language;
   set language(AgentLanguage l) {
     _language = l;

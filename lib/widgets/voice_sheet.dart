@@ -47,9 +47,17 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
   bool typing = false;
   bool done = false;
 
+  /// A start / stop is in flight — ignore extra taps.
+  bool busy = false;
+
+  /// Transcript shown briefly once recording has ended.
+  String? captured;
+  String? notice;
+
   @override
   void initState() {
     super.initState();
+    // Opening the voice agent starts recording straight away.
     WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
   }
 
@@ -62,22 +70,43 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
   }
 
   Future<void> _listen() async {
-    if (!mounted) return;
-    setState(() => typing = false);
-    final ok = await speech.start(store.language, onResult: (text, isFinal) {
-      if (!mounted) return;
-      typed.text = text;
-      if (isFinal && text.trim().isNotEmpty) {
-        Timer(const Duration(milliseconds: 450), () => _submit(text));
-      }
+    if (!mounted || busy || done) return;
+    setState(() {
+      busy = true;
+      typing = false;
+      captured = null;
+      notice = null;
     });
-    if (!ok && mounted) setState(() => typing = true);
+    final ok = await speech.start(store.language, onResult: (text, isFinal) {
+      if (isFinal) _onCaptured(text);
+    });
+    if (!mounted) return;
+    setState(() {
+      busy = false;
+      if (!ok) notice = speech.lastError ?? 'Microphone unavailable — type instead.';
+    });
   }
 
+  void _onCaptured(String text) {
+    if (!mounted || done) return;
+    final t = text.trim();
+    if (t.isEmpty) {
+      setState(() => notice = "Didn't catch anything — tap the mic and speak again.");
+      return;
+    }
+    setState(() => captured = t);
+    Timer(const Duration(milliseconds: 700), () => _submit(t));
+  }
+
+  /// Mic / Done: stop and use what was said, or start a new recording.
   Future<void> _toggle() async {
+    if (busy || done) return;
     if (speech.isListening) {
+      setState(() => busy = true);
       final text = await speech.stop();
-      if (text.trim().isNotEmpty) _submit(text);
+      if (!mounted) return;
+      setState(() => busy = false);
+      _onCaptured(text);
     } else {
       await _listen();
     }
@@ -90,10 +119,16 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
     Navigator.of(context).pop(text.trim());
   }
 
+  /// Switching language never auto-starts; the user taps the mic.
   Future<void> _setLanguage(AgentLanguage l) async {
+    if (busy) return;
     store.language = l;
     if (speech.isListening) await speech.cancel();
-    await _listen();
+    if (!mounted) return;
+    setState(() {
+      captured = null;
+      notice = null;
+    });
   }
 
   @override
@@ -177,13 +212,28 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                   Text(
                     listening
                         ? '${strings.listening}\n${strings.pauseHint}'
-                        : speech.state == SpeechState.initializing
-                            ? 'Starting on-device recogniser…'
-                            : strings.tapToSpeak,
+                        : captured != null
+                            ? '✓'
+                            : busy || speech.state == SpeechState.initializing
+                                ? '…'
+                                : strings.tapToSpeak,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13, color: CropinColors.subText),
                   ),
-                  if (!typing && speech.partial.isNotEmpty) ...[
+                  if (listening)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: FilledButton.icon(
+                          key: const Key('dictation-done'),
+                          style: FilledButton.styleFrom(backgroundColor: CropinColors.green),
+                          onPressed: busy ? null : _toggle,
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Done'),
+                        ),
+                      ),
+                    ),
+                  if (captured != null) ...[
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -191,23 +241,20 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                         color: CropinColors.searchFill,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(speech.partial,
+                      child: Text(captured!,
                           style: const TextStyle(fontSize: 15, color: CropinColors.text)),
                     ),
-                    if (listening)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: FilledButton.icon(
-                            key: const Key('dictation-done'),
-                            style: FilledButton.styleFrom(backgroundColor: CropinColors.green),
-                            onPressed: _toggle,
-                            icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Done'),
-                          ),
-                        ),
+                  ],
+                  if (notice != null && err == null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4E0),
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      child: Text(notice!, style: const TextStyle(fontSize: 11)),
+                    ),
                   ],
                   if (err != null) ...[
                     const SizedBox(height: 10),

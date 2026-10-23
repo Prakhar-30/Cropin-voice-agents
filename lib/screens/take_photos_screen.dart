@@ -231,7 +231,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          speech.partial.isEmpty ? strings.listening : speech.partial,
+                          '${strings.listening}  ·  ${strings.holdToSpeak}',
                           style: const TextStyle(color: Colors.white, fontSize: 14),
                         ),
                       ),
