@@ -3,6 +3,7 @@ import 'package:cropin_voice_agents/data/demo_data.dart';
 import 'package:cropin_voice_agents/voice/agent_language.dart';
 import 'package:cropin_voice_agents/voice/agent_strings.dart';
 import 'package:cropin_voice_agents/voice/nlu/alert_parser.dart';
+import 'package:cropin_voice_agents/voice/nlu/dictation.dart';
 import 'package:cropin_voice_agents/voice/nlu/form_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/intent_router.dart';
 import 'package:cropin_voice_agents/voice/nlu/nbest.dart';
@@ -406,6 +407,65 @@ void main() {
 
     test('explicit search still searches', () {
       expect(IntentRouter.detect('show plots with 7 acres'), AgentIntent.search);
+    });
+  });
+
+  group('dictation across pauses', () {
+    Dictation said(List<String> segments) {
+      final d = Dictation();
+      for (final s in segments) {
+        d.add(s);
+      }
+      return d;
+    }
+
+    final cases = {
+      'English': (
+        ['farmer name is Ramesh Kumar, his mobile number is 6867116104', 'add him to the paddy project'],
+        'Ramesh Kumar', '6867116104',
+      ),
+      'Hindi': (
+        ['किसान का नाम सुरेश यादव मोबाइल 98765 43210', 'इन्हें धान प्रोजेक्ट में जोड़ दो'],
+        'Suresh Yadav', '9876543210',
+      ),
+      'Kannada': (
+        ['ರೈತನ ಹೆಸರು ರಮೇಶ್ ಗೌಡ ಮೊಬೈಲ್ 98450 12345', 'ಅವರನ್ನು ಭತ್ತ ಪ್ರಾಜೆಕ್ಟ್‌ಗೆ ಸೇರಿಸಿ'],
+        'Ramesh Gowda', '9845012345',
+      ),
+      'Tamil': (
+        ['விவசாயி பெயர் முருகன் செல்வம் மொபைல் 94430 56789', 'அவரை நெல் திட்டத்தில் சேர்க்கவும்'],
+        'Murugan Selvam', '9443056789',
+      ),
+    };
+    for (final c in cases.entries) {
+      test('${c.key}: both halves are kept and routed to Add Farmer', () {
+        final d = said(c.value.$1);
+        expect(IntentRouter.detect(d.text), AgentIntent.addFarmer);
+        final r = formParser().parse(d.text);
+        expect(r.name!.value, c.value.$2);
+        expect(r.phone!.value, c.value.$3);
+        expect(r.projectId!.value, 'p5');
+        expect(r.unmapped, isEmpty);
+      });
+    }
+
+    test('silence adds nothing; "done" words finish and are stripped', () {
+      final d = Dictation()
+        ..add('   ')
+        ..add('name Ramesh Kumar');
+      expect(d.text, 'name Ramesh Kumar');
+      expect(Dictation.stripDone('paddy project done'), ('paddy project', true));
+      expect(Dictation.stripDone('ಭತ್ತ ಪ್ರಾಜೆಕ್ಟ್ ಮುಗಿತು'), ('ಭತ್ತ ಪ್ರಾಜೆಕ್ಟ್', true));
+      expect(Dictation.stripDone('நெல் திட்டம் முடிந்தது'), ('நெல் திட்டம்', true));
+      expect(Dictation.stripDone('धान प्रोजेक्ट बस'), ('धान प्रोजेक्ट', true));
+      expect(Dictation.stripDone('paddy project').$2, isFalse);
+    });
+
+    test('N-best variants per segment', () {
+      final d = Dictation()
+        ..add('name Ramesh Kumar', ['name Ramesh Kumar', 'name Rakesh Kumar'])
+        ..add('red oil', ['red oil', 'red soil']);
+      expect(d.hypotheses(), containsAll(['name Ramesh Kumar red oil', 'name Ramesh Kumar red soil']));
     });
   });
 }

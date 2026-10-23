@@ -18,6 +18,12 @@ class AgentStrings {
   String get tapToSpeak => _pick('Tap the mic and speak', 'माइक दबाएँ और बोलें',
       'ಮೈಕ್ ಒತ್ತಿ ಮಾತನಾಡಿ', 'மைக்கை அழுத்தி பேசுங்கள்');
 
+  String get pauseHint => _pick(
+      "Pauses are fine — say 'done' or tap ✓ when finished",
+      "रुककर बोल सकते हैं — पूरा होने पर 'बस' कहें या ✓ दबाएँ",
+      "ನಿಲ್ಲಿಸಿ ಮಾತನಾಡಬಹುದು — ಮುಗಿದಾಗ 'ಮುಗಿತು' ಎನ್ನಿ ಅಥವಾ ✓ ಒತ್ತಿ",
+      "இடைநிறுத்தி பேசலாம் — முடிந்ததும் 'முடிந்தது' என்று சொல்லுங்கள் அல்லது ✓ அழுத்துங்கள்");
+
   String get holdToSpeak => _pick('Hold the shutter and speak', 'शटर दबाकर रखें और बोलें',
       'ಶಟರ್ ಒತ್ತಿ ಹಿಡಿದು ಮಾತನಾಡಿ', 'ஷட்டரை அழுத்திப் பிடித்து பேசுங்கள்');
 

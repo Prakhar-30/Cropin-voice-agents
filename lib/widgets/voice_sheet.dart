@@ -176,7 +176,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                   const SizedBox(height: 12),
                   Text(
                     listening
-                        ? strings.listening
+                        ? '${strings.listening}\n${strings.pauseHint}'
                         : speech.state == SpeechState.initializing
                             ? 'Starting on-device recogniser…'
                             : strings.tapToSpeak,
@@ -194,6 +194,20 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                       child: Text(speech.partial,
                           style: const TextStyle(fontSize: 15, color: CropinColors.text)),
                     ),
+                    if (listening)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: FilledButton.icon(
+                            key: const Key('dictation-done'),
+                            style: FilledButton.styleFrom(backgroundColor: CropinColors.green),
+                            onPressed: _toggle,
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Done'),
+                          ),
+                        ),
+                      ),
                   ],
                   if (err != null) ...[
                     const SizedBox(height: 10),

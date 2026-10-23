@@ -6,6 +6,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../voice/agent_language.dart';
+import '../voice/nlu/dictation.dart';
 import 'speech_pack_service.dart';
 
 enum SpeechState { idle, initializing, listening, error }
@@ -28,8 +29,6 @@ class SpeechService extends ChangeNotifier {
   SpeechState state = SpeechState.idle;
   String partial = '';
 
-  /// Alternative transcripts of the last utterance, best first (N-best).
-  List<String> alternates = [];
   String? lastError;
   double soundLevel = 0;
   List<LocaleName> installedLocales = [];
@@ -40,7 +39,6 @@ class SpeechService extends ChangeNotifier {
   /// 'online'   – the user switched "Offline only" off
   String mode = 'offline';
   AgentLanguage? _lang;
-  bool _usedOnDevice = false;
   bool _retried = false;
 
   void Function(String text, bool isFinal)? _onResult;
@@ -84,11 +82,37 @@ class SpeechService extends ChangeNotifier {
   bool supports(AgentLanguage lang) => installedLocales
       .any((l) => l.localeId.toLowerCase().startsWith(lang.code));
 
+  // ------------------------------------------------------------ dictation
+  /// How long the speaker may stay silent before the command is considered
+  /// finished. Android stops each session after ~1 s of silence; we restart
+  /// it and keep collecting until this much silence has passed.
+  static const endSilence = Duration(milliseconds: 3500);
+  static const noSpeechTimeout = Duration(seconds: 10);
+  static const maxDictation = Duration(seconds: 90);
+
+  final Dictation _dict = Dictation();
+  bool _continuous = false;
+  bool _onDeviceNow = false;
+  bool _restartPending = false;
+  String _segPartial = '';
+  Timer? _silenceTimer;
+  Timer? _maxTimer;
+
+  /// Listens continuously: pauses are fine, segments are joined, and the
+  /// result is delivered with `isFinal == true` once the speaker has been
+  /// silent for [endSilence], says "done", or [stop] is called.
   Future<bool> start(AgentLanguage lang,
       {void Function(String text, bool isFinal)? onResult, bool forceFallback = false}) async {
     if (!await init()) return false;
+    _continuous = false; // so the cancel below doesn't trigger a restart
     if (_stt.isListening) await _stt.cancel();
-    if (!forceFallback) _retried = false;
+    if (!forceFallback) {
+      _retried = false;
+      _dict.clear();
+      _finalCompleter = Completer<String>();
+      _maxTimer?.cancel();
+      _maxTimer = Timer(maxDictation, _finish);
+    }
     var onDevice = offlineOnly && !forceFallback;
     if (onDevice) {
       // Make sure the on-device model exists; if not, fetch it in the
@@ -103,14 +127,26 @@ class SpeechService extends ChangeNotifier {
     if (forceFallback) unawaited(SpeechPackService.instance.download(lang));
     mode = onDevice ? 'offline' : (offlineOnly ? 'fallback' : 'online');
     _lang = lang;
-    _usedOnDevice = onDevice;
-    partial = '';
-    alternates = [];
+    _onDeviceNow = onDevice;
+    partial = _dict.text;
     lastError = null;
     _onResult = onResult;
-    _finalCompleter = Completer<String>();
+    _continuous = true;
     state = SpeechState.listening;
+    _armSilence(noSpeech: _dict.isEmpty);
     notifyListeners();
+    return _listenSegment();
+  }
+
+  Future<bool> _listenSegment() async {
+    _restartPending = false;
+    // A session that ended without a final result still counts.
+    if (_segPartial.isNotEmpty) {
+      _dict.add(_segPartial);
+      _segPartial = '';
+    }
+    final lang = _lang;
+    if (lang == null || !_continuous) return false;
     try {
       await _stt.listen(
         onResult: _handleResult,
@@ -120,16 +156,21 @@ class SpeechService extends ChangeNotifier {
         },
         listenOptions: SpeechListenOptions(
           localeId: lang.ttsLocale,
-          listenFor: const Duration(seconds: 45),
-          pauseFor: const Duration(seconds: 4),
+          listenFor: const Duration(seconds: 60),
+          pauseFor: const Duration(seconds: 3),
           partialResults: true,
-          onDevice: onDevice,
+          onDevice: _onDeviceNow,
           listenMode: ListenMode.dictation,
           cancelOnError: true,
         ),
       );
       return true;
     } catch (e) {
+      if (!_dict.isEmpty) {
+        _finish();
+        return true;
+      }
+      _continuous = false;
       state = SpeechState.error;
       lastError = '$e';
       notifyListeners();
@@ -137,65 +178,131 @@ class SpeechService extends ChangeNotifier {
     }
   }
 
-  /// Stops listening and returns the final transcript (or the last partial).
-  Future<String> stop() async {
-    if (_stt.isListening) await _stt.stop();
-    final c = _finalCompleter;
-    if (c == null) return partial;
-    try {
-      return await c.future.timeout(const Duration(milliseconds: 1800), onTimeout: () => partial);
-    } finally {
-      state = SpeechState.idle;
-      notifyListeners();
-    }
+  void _armSilence({bool noSpeech = false}) {
+    _silenceTimer?.cancel();
+    _silenceTimer = Timer(noSpeech ? noSpeechTimeout : endSilence, _finish);
   }
 
-  /// Hypotheses to try for [chosen]: the recogniser's N-best list when the
-  /// text came straight from speech, otherwise just the (typed/edited) text.
+  void _scheduleRestart() {
+    if (_restartPending || !_continuous) return;
+    _restartPending = true;
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (_continuous && !_stt.isListening) {
+        _listenSegment();
+      } else {
+        _restartPending = false;
+      }
+    });
+  }
+
+  /// Ends the dictation and delivers the joined text.
+  void _finish() {
+    if (!_continuous) return;
+    _continuous = false;
+    _silenceTimer?.cancel();
+    _maxTimer?.cancel();
+    if (_stt.isListening) _stt.stop();
+    final text = _dict.withPartial(_segPartial);
+    _segPartial = '';
+    partial = text;
+    state = SpeechState.idle;
+    _onResult?.call(text, true);
+    _complete(text);
+    notifyListeners();
+  }
+
+  /// Stops listening (user tapped Done / released the shutter) and returns
+  /// everything said so far.
+  Future<String> stop() async {
+    _continuous = false;
+    _silenceTimer?.cancel();
+    _maxTimer?.cancel();
+    if (_stt.isListening) await _stt.stop();
+    final c = _finalCompleter;
+    var text = _dict.withPartial(_segPartial);
+    if (c != null && !c.isCompleted) {
+      // the last segment's final result usually arrives right after stop()
+      text = await c.future
+          .timeout(const Duration(milliseconds: 1200), onTimeout: () => _dict.withPartial(_segPartial));
+    } else if (c != null) {
+      text = await c.future;
+    }
+    _segPartial = '';
+    _complete(text);
+    partial = text;
+    state = SpeechState.idle;
+    notifyListeners();
+    return text;
+  }
+
+  /// Hypotheses to try for [chosen]: N-best variants of the dictated command
+  /// when the text came straight from speech, otherwise just the typed text.
   List<String> hypothesesFor(String chosen) {
     final c = chosen.trim();
-    if (alternates.isEmpty || !alternates.any((a) => a.trim() == c)) return [c];
-    return [c, ...alternates.where((a) => a.trim() != c)];
+    if (_dict.isEmpty || _dict.text != c) return [c];
+    return _dict.hypotheses();
   }
 
   Future<void> cancel() async {
+    _continuous = false;
+    _silenceTimer?.cancel();
+    _maxTimer?.cancel();
     await _stt.cancel();
-    _complete(partial);
+    _complete(_dict.withPartial(_segPartial));
     state = SpeechState.idle;
     notifyListeners();
   }
 
   void _handleResult(SpeechRecognitionResult r) {
-    partial = r.recognizedWords;
+    final words = r.recognizedWords.trim();
     final alts = <String>[];
     for (final a in r.alternates) {
       final w = a.recognizedWords.trim();
       if (w.isNotEmpty && !alts.contains(w)) alts.add(w);
     }
-    if (alts.isNotEmpty) alternates = alts;
-    _onResult?.call(partial, r.finalResult);
+    if (words.isNotEmpty) _silenceTimer?.cancel();
     if (r.finalResult) {
-      _complete(partial);
-      state = SpeechState.idle;
+      final (clean, done) = Dictation.stripDone(words);
+      _dict.add(clean, alts);
+      _segPartial = '';
+      partial = _dict.text;
+      notifyListeners();
+      if (done) {
+        _finish();
+      } else if (_continuous) {
+        _onResult?.call(partial, false);
+        _armSilence(noSpeech: _dict.isEmpty);
+        _scheduleRestart();
+      } else {
+        _complete(_dict.text);
+      }
+      return;
     }
+    _segPartial = words;
+    partial = _dict.withPartial(words);
+    _onResult?.call(partial, false);
     notifyListeners();
   }
 
   void _handleStatus(String status) {
-    if (status == SpeechToText.doneStatus || status == SpeechToText.notListeningStatus) {
-      if (state == SpeechState.listening) {
-        state = SpeechState.idle;
-        // final result normally arrives just before "done"; give it a moment
-        Future.delayed(const Duration(milliseconds: 600), () => _complete(partial));
-      }
-      notifyListeners();
+    if (status != SpeechToText.doneStatus && status != SpeechToText.notListeningStatus) return;
+    if (_continuous) {
+      // Session ended at a pause: keep listening, the silence timer decides
+      // when the command is over.
+      _armSilence(noSpeech: _dict.isEmpty && _segPartial.isEmpty);
+      _scheduleRestart();
+    } else if (state == SpeechState.listening) {
+      state = SpeechState.idle;
+      Future.delayed(const Duration(milliseconds: 600),
+          () => _complete(_dict.withPartial(_segPartial)));
     }
+    notifyListeners();
   }
 
   void _handleError(SpeechRecognitionError e) {
     final missingPack = e.errorMsg == 'error_language_unavailable' ||
         e.errorMsg == 'error_language_not_supported';
-    if (missingPack && _usedOnDevice && !_retried && _lang != null) {
+    if (missingPack && _onDeviceNow && !_retried && _lang != null) {
       // On-device model missing: download it and carry on with the
       // standard recogniser so the user isn't blocked.
       _retried = true;
@@ -204,12 +311,26 @@ class SpeechService extends ChangeNotifier {
       Future.microtask(() => start(lang, onResult: cb, forceFallback: true));
       return;
     }
+    const silence = {
+      'error_no_match', 'error_speech_timeout', 'error_client', 'error_busy',
+      'error_recognizer_busy',
+    };
+    if (_continuous && silence.contains(e.errorMsg)) {
+      // Just a pause (or a restart race) — keep the dictation going.
+      _armSilence(noSpeech: _dict.isEmpty && _segPartial.isEmpty);
+      _scheduleRestart();
+      return;
+    }
+    if (_continuous && !_dict.isEmpty) {
+      _finish();
+      return;
+    }
+    _continuous = false;
     lastError = describeError(e.errorMsg);
     state = SpeechState.error;
-    _complete(partial);
+    _complete(_dict.withPartial(_segPartial));
     notifyListeners();
   }
-
 
   void _complete(String text) {
     final c = _finalCompleter;
