@@ -8,7 +8,7 @@ The UI reuses the Cropin Grow look: dark-teal header, green search button, advis
 
 Every push runs the **Build APK** GitHub Actions workflow, which attaches the APK to a GitHub release:
 
-- Latest APK: `https://github.com/Prakhar-30/Cropin-voice-agents/releases/latest/download/cropin-voice-agents.apk`
+- Latest APK: <https://github.com/Prakhar-30/Cropin-voice-agents/releases/latest/download/cropin-voice-agents.apk>
 - All builds: <https://github.com/Prakhar-30/Cropin-voice-agents/releases>
 
 ## The four agents
