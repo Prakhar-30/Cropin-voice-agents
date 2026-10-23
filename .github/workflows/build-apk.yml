@@ -53,7 +53,11 @@ jobs:
       - name: Generate Android platform files
         # Creates any missing Android scaffolding (Gradle files, MainActivity, icons).
         # Existing files such as AndroidManifest.xml and lib/ are kept as they are.
-        run: flutter create --platforms=android --org com.cropin --project-name cropin_voice_agents .
+        run: |
+          flutter create --platforms=android --org com.cropin --project-name cropin_voice_agents .
+          # The microphone streaming plugin (record) needs Android 7.0+.
+          sed -i -E 's/(minSdk(Version)?( =)?) flutter\.minSdkVersion/\1 24/' android/app/build.gradle* || true
+          grep -n "minSdk" android/app/build.gradle* || true
 
       - name: Install dependencies
         run: flutter pub get

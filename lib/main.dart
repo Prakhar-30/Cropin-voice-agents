@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_shell.dart';
+import 'services/speech_models.dart';
 import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SpeechModels.instance.refresh();
   runApp(const CropinVoiceApp());
 }
 

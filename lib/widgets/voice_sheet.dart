@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
+import '../services/speech_models.dart';
 import '../services/speech_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_language.dart';
@@ -153,6 +154,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
               ],
               const SizedBox(height: 14),
               _LanguageTabs(value: store.language, onChanged: _setLanguage),
+              ModelPrompt(lang: store.language),
               const SizedBox(height: 24),
               // Mic: loader while starting, pulsing while listening, tap to finish.
               GestureDetector(
@@ -305,6 +307,72 @@ class _LanguageTabs extends StatelessWidget {
             ),
         ]),
       );
+}
+
+/// Offers the language's offline voice model while it isn't on the phone
+/// (recording meanwhile uses the phone's own recogniser). Shows nothing once
+/// the model is ready.
+class ModelPrompt extends StatelessWidget {
+  const ModelPrompt({super.key, required this.lang});
+  final AgentLanguage lang;
+
+  @override
+  Widget build(BuildContext context) {
+    final models = SpeechModels.instance;
+    return ListenableBuilder(
+      listenable: models,
+      builder: (context, _) {
+        final st = models.state[lang]!;
+        if (st == ModelState.ready || st == ModelState.checking) return const SizedBox.shrink();
+        final downloading = st == ModelState.downloading;
+        return Container(
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+          decoration: BoxDecoration(
+            color: CropinColors.searchFill,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text(
+                  switch (st) {
+                    ModelState.downloading =>
+                      'Downloading ${lang.englishName} voice model… ${((models.progress[lang] ?? 0) * 100).round()}%',
+                    ModelState.failed => models.error[lang] ?? 'Download failed',
+                    _ => 'Get the ${lang.englishName} voice model for the best accuracy '
+                        '(${models.sizeMb(lang)} MB, once, Wi-Fi recommended)',
+                  },
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: st == ModelState.failed ? CropinColors.attention : CropinColors.subText),
+                ),
+              ),
+              if (!downloading)
+                TextButton(
+                  key: const Key('download-voice-model'),
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  onPressed: () => models.download(lang),
+                  child: Text(st == ModelState.failed ? 'Retry' : 'Download',
+                      style: const TextStyle(fontSize: 12)),
+                ),
+            ]),
+            if (downloading) ...[
+              const SizedBox(height: 6),
+              LinearProgressIndicator(
+                value: models.progress[lang],
+                minHeight: 3,
+                color: CropinColors.green,
+                backgroundColor: CropinColors.border,
+              ),
+            ],
+          ]),
+        );
+      },
+    );
+  }
 }
 
 /// Round mic button used next to search bars and on forms.

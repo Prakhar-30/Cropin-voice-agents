@@ -1,17 +1,28 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../voice/agent_language.dart';
 import '../voice/nlu/dictation.dart';
+import 'sherpa_engine.dart';
+import 'speech_models.dart';
 import 'speech_pack_service.dart';
 
 enum SpeechState { idle, initializing, listening, error }
 
-/// Wraps Android's speech recogniser for field dictation.
+/// Field dictation.
+///
+/// When the language's offline model is downloaded ([SpeechModels]) the app's
+/// own recogniser is used: the microphone streams into Silero VAD and
+/// IndicConformer / NeMo models (sherpa-onnx) on the phone — one continuous
+/// recording, no beeps, no Google language packs. Until then Android's speech
+/// recogniser is used as described below.
 ///
 /// Android ends a recognition session at the first short pause, so one
 /// command ("name … mobile … (pause) … add him to the paddy project") is
@@ -53,6 +64,7 @@ class SpeechService extends ChangeNotifier {
   double soundLevel = 0;
   List<LocaleName> installedLocales = [];
 
+  /// 'model'    – the app's own offline model (sherpa-onnx) is used
   /// 'offline'  – Android's on-device model is used
   /// 'fallback' – offline wanted, but this language's on-device pack isn't
   ///              installed yet, so the standard recogniser is used meanwhile
@@ -85,6 +97,13 @@ class SpeechService extends ChangeNotifier {
 
   /// Pack status is cached per language so starting is instant.
   final Map<AgentLanguage, (bool, DateTime)> _packCache = {};
+
+  // --- app's own offline recogniser (sherpa-onnx)
+  final SherpaEngine _engine = SherpaEngine.instance;
+  AudioRecorder? _mic;
+  StreamSubscription<Uint8List>? _micSub;
+  bool _useModel = false;
+  int? _oddByte;
 
   bool get isListening => state == SpeechState.listening;
   bool get isReady => _ready;
@@ -151,6 +170,7 @@ class SpeechService extends ChangeNotifier {
     _autoStop = autoStopOnSilence;
     lastError = null;
     if (state == SpeechState.error) state = SpeechState.idle;
+    if (SpeechModels.instance.isReady(lang)) return _startModel(lang, onResult);
     if (!await init()) return false;
     _dict.clear();
     _segPartial = '';
@@ -180,6 +200,137 @@ class SpeechService extends ChangeNotifier {
       notifyListeners();
     }
     return ok;
+  }
+
+  /// Records with the app's own offline model.
+  Future<bool> _startModel(
+      AgentLanguage lang, void Function(String text, bool isFinal)? onResult) async {
+    _dict.clear();
+    partial = '';
+    _segPartial = '';
+    _lang = lang;
+    _onResult = onResult;
+    _finishing = false;
+    _useModel = true;
+    mode = 'model';
+    _active = true;
+    live = false;
+    _startedAt = DateTime.now();
+    _lastVoiceAt = null;
+    state = SpeechState.listening;
+    notifyListeners();
+
+    final mic = _mic ??= AudioRecorder();
+    try {
+      if (!await mic.hasPermission()) {
+        return _failModel('Microphone permission is needed — allow it in Settings.');
+      }
+      final models = SpeechModels.instance;
+      final err = await _engine.load(
+        model: await models.pathOf(SpeechModels.model(lang)),
+        tokens: await models.pathOf(SpeechModels.tokens(lang)),
+        vad: await models.pathOf(SpeechModels.vad),
+      );
+      if (err != null) return _failModel(err);
+      if (!_active || _lang != lang) return false;
+      _engine.reset();
+      _engine.onText = (t) {
+        _dict.add(t);
+        _lastVoiceAt = DateTime.now();
+      };
+      _engine.onSpeech = (on) {
+        if (on) _lastVoiceAt = DateTime.now();
+      };
+      _oddByte = null;
+      final stream = await mic.startStream(const RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        sampleRate: SherpaEngine.sampleRate,
+        numChannels: 1,
+        autoGain: true,
+      ));
+      if (!_active) {
+        await mic.stop();
+        return false;
+      }
+      _micSub = stream.listen(_onPcm);
+      live = true;
+      _ticker?.cancel();
+      _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) => _tickModel());
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return _failModel('Could not start the microphone: $e');
+    }
+  }
+
+  bool _failModel(String message) {
+    _active = false;
+    _useModel = false;
+    lastError = message;
+    state = SpeechState.error;
+    notifyListeners();
+    return false;
+  }
+
+  /// 16-bit little-endian PCM from the microphone -> float samples.
+  void _onPcm(Uint8List bytes) {
+    if (!_active || _finishing) return;
+    var data = bytes;
+    if (_oddByte != null) {
+      data = Uint8List(bytes.length + 1)
+        ..[0] = _oddByte!
+        ..setAll(1, bytes);
+      _oddByte = null;
+    }
+    final n = data.length ~/ 2;
+    if (data.length.isOdd) _oddByte = data.last;
+    final bd = ByteData.sublistView(data);
+    final samples = Float32List(n);
+    var sum = 0.0;
+    for (var i = 0; i < n; i++) {
+      final v = bd.getInt16(i * 2, Endian.little) / 32768.0;
+      samples[i] = v;
+      sum += v * v;
+    }
+    _engine.feed(samples);
+    if (_engine.speaking) _lastVoiceAt = DateTime.now();
+    // Level for the mic animation, on the same scale as Android's rms dB.
+    final rms = n == 0 ? 0.0 : math.sqrt(sum / n);
+    final db = rms <= 0 ? -100.0 : 20 * math.log(rms) / math.ln10;
+    soundLevel = ((db + 60) / 4).clamp(-2.0, 10.0);
+    notifyListeners();
+  }
+
+  void _tickModel() {
+    if (!_active || _finishing) return;
+    final now = DateTime.now();
+    final heard = _lastVoiceAt;
+    if (_autoStop && heard != null && !_engine.speaking && now.difference(heard) >= endSilence) {
+      _finish();
+    } else if (_autoStop && heard == null && now.difference(_startedAt) >= noSpeechTimeout) {
+      _finish();
+    } else if (now.difference(_startedAt) >= maxDictation) {
+      _finish();
+    }
+  }
+
+  Future<String> _stopModel() async {
+    _finishing = true;
+    _ticker?.cancel();
+    await _micSub?.cancel();
+    _micSub = null;
+    try {
+      await _mic?.stop();
+    } catch (_) {}
+    await _engine.flush();
+    final text = _dict.text;
+    _active = false;
+    _useModel = false;
+    _finishing = false;
+    partial = text;
+    state = SpeechState.idle;
+    notifyListeners();
+    return text;
   }
 
   Future<bool> _listenSegment() async {
@@ -232,6 +383,15 @@ class SpeechService extends ChangeNotifier {
   /// Initialises the recogniser and checks the language pack ahead of time so
   /// tapping the mic starts listening quickly.
   Future<void> prewarm(AgentLanguage lang) async {
+    final models = SpeechModels.instance;
+    if (models.isReady(lang)) {
+      await _engine.load(
+        model: await models.pathOf(SpeechModels.model(lang)),
+        tokens: await models.pathOf(SpeechModels.tokens(lang)),
+        vad: await models.pathOf(SpeechModels.vad),
+      );
+      return;
+    }
     if (!await init()) return;
     await _useOnDevice(lang);
   }
@@ -294,6 +454,7 @@ class SpeechService extends ChangeNotifier {
       }
       return partial;
     }
+    if (_useModel) return _stopModel();
     _finishing = true;
     _ticker?.cancel();
     try {
@@ -320,6 +481,21 @@ class SpeechService extends ChangeNotifier {
   Future<void> cancel() => _halt();
 
   Future<void> _halt() async {
+    if (_useModel) {
+      _active = false;
+      _useModel = false;
+      _finishing = false;
+      _ticker?.cancel();
+      await _micSub?.cancel();
+      _micSub = null;
+      try {
+        await _mic?.stop();
+      } catch (_) {}
+      _engine.reset();
+      if (state == SpeechState.listening) state = SpeechState.idle;
+      notifyListeners();
+      return;
+    }
     final wasActive = _active || _stt.isListening;
     _active = false;
     _finishing = false;

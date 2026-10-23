@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../services/location_service.dart';
-import '../services/speech_pack_service.dart';
+import '../services/speech_models.dart';
 import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
@@ -11,7 +11,7 @@ import '../voice/agent_strings.dart';
 import '../widgets/top_bar.dart';
 
 /// Language, offline mode, TTS and location settings for the voice agents,
-/// plus a check of which offline speech packs the phone has.
+/// plus the offline voice models.
 class VoiceSettingsScreen extends StatefulWidget {
   const VoiceSettingsScreen({super.key});
 
@@ -23,7 +23,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   final store = AppStore.instance;
   final speech = SpeechService.instance;
   final tts = TtsService.instance;
-  final packs = SpeechPackService.instance;
+  final models = SpeechModels.instance;
   final ttsAvailable = <AgentLanguage, bool>{};
 
   @override
@@ -34,7 +34,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
 
   Future<void> _check() async {
     await speech.init();
-    await packs.status(store.language);
+    await models.refresh();
     for (final l in AgentLanguage.values) {
       ttsAvailable[l] = await tts.isAvailable(l);
     }
@@ -64,63 +64,51 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             ),
           ),
         const Divider(),
-        const _Header('Offline speech packs (downloaded by the app)'),
+        const _Header('Offline voice models (downloaded once per language)'),
         ListenableBuilder(
-          listenable: packs,
+          listenable: models,
           builder: (context, _) => Column(children: [
             for (final l in AgentLanguage.values)
               ListTile(
                 dense: true,
                 leading: Icon(
-                  switch (packs.state[l]) {
-                    PackState.installed => Icons.check_circle,
-                    PackState.downloading || PackState.scheduled => Icons.downloading,
-                    PackState.unsupported => Icons.block,
+                  switch (models.state[l]!) {
+                    ModelState.ready => Icons.check_circle,
+                    ModelState.downloading => Icons.downloading,
+                    ModelState.failed => Icons.error_outline,
                     _ => Icons.download_for_offline_outlined,
                   },
-                  color: packs.state[l] == PackState.installed
-                      ? CropinColors.voiceFilled
-                      : CropinColors.primary,
+                  color: models.isReady(l) ? CropinColors.voiceFilled : CropinColors.primary,
                 ),
-                title: Text(l.nativeName),
-                subtitle: Text(packs.label(l), style: const TextStyle(fontSize: 11)),
-                trailing: packs.state[l] == PackState.installed ||
-                        packs.state[l] == PackState.unsupported
-                    ? null
-                    : TextButton(
-                        onPressed: packs.state[l] == PackState.downloading
-                            ? null
-                            : () => packs.download(l),
-                        child: const Text('Download'),
-                      ),
+                title: Text('${l.nativeName}  ·  ${l.englishName}'),
+                subtitle: models.state[l] == ModelState.downloading
+                    ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(models.label(l), style: const TextStyle(fontSize: 11)),
+                        const SizedBox(height: 4),
+                        LinearProgressIndicator(value: models.progress[l], minHeight: 3),
+                      ])
+                    : Text(models.label(l), style: const TextStyle(fontSize: 11)),
+                trailing: switch (models.state[l]!) {
+                  ModelState.ready => IconButton(
+                      tooltip: 'Delete to free space',
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      onPressed: () => models.delete(l),
+                    ),
+                  ModelState.downloading || ModelState.checking => null,
+                  _ => TextButton(
+                      onPressed: () => models.download(l),
+                      child: Text(models.state[l] == ModelState.failed ? 'Retry' : 'Download'),
+                    ),
+                },
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(children: [
-                Expanded(
-                  child: Text(
-                    packs.last == null
-                        ? 'Checking on-device recogniser…'
-                        : !packs.last!.onDeviceAvailable
-                            ? 'This phone has no on-device recogniser; the standard one is used.'
-                            : packs.last!.sdk < 33
-                                ? 'Android ${packs.last!.sdk} can\'t report pack status; '
-                                    'download is triggered when you first speak.'
-                                : 'Missing packs download automatically the first time you speak.',
-                    style: const TextStyle(fontSize: 11, color: CropinColors.subText),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
-                    for (final l in AgentLanguage.values) {
-                      await packs.download(l);
-                    }
-                    await packs.status(store.language);
-                  },
-                  icon: const Icon(Icons.download, size: 16),
-                  label: const Text('All'),
-                ),
-              ]),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'With a language\'s model downloaded, speech is recognised entirely on this phone '
+                '(AI4Bharat IndicConformer for Hindi, Kannada and Tamil; NeMo for English). '
+                'Until then the phone\'s own recogniser is used.',
+                style: TextStyle(fontSize: 11, color: CropinColors.subText),
+              ),
             ),
           ]),
         ),
