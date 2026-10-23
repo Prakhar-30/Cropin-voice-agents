@@ -53,18 +53,12 @@ jobs:
       - name: APIs
         shell: bash {0}
         run: |
-          flutter pub cache add sherpa_onnx
-          flutter pub cache add record
-          flutter pub cache add path_provider
-          d=$(ls -d ~/.pub-cache/hosted/pub.dev/sherpa_onnx-* | sort -V | tail -1)
-          ls -d ~/.pub-cache/hosted/pub.dev/*/
-          for f in offline_recognizer vad offline_stream; do echo "=== FILE $f"; sed -n 1,360p $d/lib/src/$f.dart | grep -v '^\s*//' | grep -v '^\s*$'; done
-          a=$(ls -d ~/.pub-cache/hosted/pub.dev/sherpa_onnx_android_arm64-* | tail -1); echo "ARM64 $a"; find $a -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk|ndk|abiFilters' {} \; ; find $a -name '*.so' -exec ls -la {} \;
-          r=$(ls -d ~/.pub-cache/hosted/pub.dev/record-* | sort -V | tail -1); echo "RECORD $r"; grep -nE "Future|Stream" $r/lib/src/record.dart | head -40
-          rp=$(ls -d ~/.pub-cache/hosted/pub.dev/record_platform_interface-* | sort -V | tail -1); grep -nE "^\s+(final|const) |  const RecordConfig|enum AudioEncoder" -A0 $rp/lib/src/types/record_config.dart | head -40; grep -n "pcm16bits" -r $rp/lib | head -3
-          ra=$(ls -d ~/.pub-cache/hosted/pub.dev/record_android-* | sort -V | tail -1); echo "RECORD_ANDROID $ra"; find $ra -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk' {} \;
-      - name: IndicConformer README usage
-        shell: bash {0}
-        run: |
-          curl -sfL "https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx/raw/main/README.md" | sed -n 80,400p
-          curl -sfL "https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx/raw/main/available_languages.json"
+          for p in sherpa_onnx sherpa_onnx_android_arm64 record record_platform_interface record_android path_provider; do flutter pub cache add $p >/dev/null; done
+          P=~/.pub-cache/hosted/pub.dev
+          d=$(ls -d $P/sherpa_onnx-* | sort -V | tail -1)
+          for f in offline_recognizer_config vad_config; do echo "=== FILE $f"; grep -v '^\s*//' $d/lib/src/$f.dart | grep -v '^\s*$' | grep -vE "toString|^\s+'|\\$|^\s+\)" ; done
+          echo "=== getResult"; sed -n 360,460p $d/lib/src/offline_recognizer.dart | grep -v '^\s*$'
+          grep -n "class OfflineRecognizerResult" -A12 -r $d/lib/src | head -20
+          a=$(ls -d $P/sherpa_onnx_android_arm64-* | tail -1); echo "ARM64 $a"; find $a -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk|ndk' {} \; ; find $a -name '*.so' -exec ls -la {} \;
+          rp=$(ls -d $P/record_platform_interface-* | sort -V | tail -1); echo "RPI $rp"; grep -rn "class RecordConfig" -A40 $rp/lib | grep -E "final|this\.|const RecordConfig" | head -30; grep -rn "pcm16bits" $rp/lib | head -3
+          ra=$(ls -d $P/record_android-* | sort -V | tail -1); echo "RA $ra"; find $ra -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk|kotlin' {} \;
