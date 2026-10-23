@@ -55,6 +55,13 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
   String? notice;
 
   @override
+  void initState() {
+    super.initState();
+    // Warm up the recogniser so the first tap starts listening quickly.
+    speech.prewarm(store.language);
+  }
+
+  @override
   void dispose() {
     pulse.dispose();
     typed.dispose();
@@ -117,6 +124,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
     if (busy) return;
     store.language = l;
     if (speech.isListening) await speech.cancel();
+    speech.prewarm(l);
     if (!mounted) return;
     setState(() {
       captured = null;
@@ -182,7 +190,7 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: (listening ? CropinColors.green : CropinColors.primary)
+                              color: (listening && speech.live ? CropinColors.green : CropinColors.primary)
                                   .withValues(alpha: 0.15),
                             ),
                             child: child,
@@ -193,10 +201,16 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                           height: 65,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: listening ? CropinColors.green : CropinColors.primary,
+                            color: listening && speech.live ? CropinColors.green : CropinColors.primary,
                           ),
-                          child: Icon(listening ? Icons.mic : Icons.mic_none,
-                              color: Colors.white, size: 31),
+                          child: listening && !speech.live
+                              ? const Padding(
+                                  padding: EdgeInsets.all(18),
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 3),
+                                )
+                              : Icon(listening ? Icons.mic : Icons.mic_none,
+                                  color: Colors.white, size: 31),
                         ),
                       ),
                     ),
@@ -204,7 +218,9 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                   const SizedBox(height: 12),
                   Text(
                     listening
-                        ? '${strings.listening}\n${strings.pauseHint}'
+                        ? speech.live
+                            ? '${strings.speakNow}\n${strings.pauseHint}'
+                            : strings.getReady
                         : captured != null
                             ? '✓'
                             : busy || speech.state == SpeechState.initializing

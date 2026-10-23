@@ -33,6 +33,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
   final selected = <String>{};
   String? assetId;
   String? recordingFor; // photo id or 'batch'
+  String? focusId; // photo whose comment is shown / recorded
   bool capturing = false;
   int _seq = 0;
 
@@ -40,6 +41,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    speech.prewarm(store.language);
     _initCamera();
     _pickNearestPlot();
   }
@@ -110,7 +112,12 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
         createdAt: DateTime.now(),
         assetId: assetId,
       );
-      if (mounted) setState(() => photos.insert(0, p));
+      if (mounted) {
+        setState(() {
+          photos.insert(0, p);
+          focusId = p.id;
+        });
+      }
       return p;
     } catch (e) {
       if (mounted) {
@@ -122,9 +129,19 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
     }
   }
 
-  Future<void> _startNote(String target) async {
+  /// Tap "Record comment": records until Done or 2.75 s of silence, then the
+  /// text becomes the comment of [target] (a photo id, or 'batch').
+  Future<void> _recordFor(String target) async {
+    if (recordingFor != null) {
+      await _endNote();
+      return;
+    }
     setState(() => recordingFor = target);
-    final ok = await speech.start(store.language, autoStopOnSilence: false);
+    final ok = await speech.start(store.language, onResult: (text, isFinal) {
+      if (!isFinal || !mounted || recordingFor != target) return;
+      setState(() => recordingFor = null);
+      _deliver(target, text);
+    });
     if (!ok && mounted) {
       setState(() => recordingFor = null);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -132,14 +149,23 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
     }
   }
 
+  /// Done tapped while recording.
   Future<void> _endNote() async {
     final target = recordingFor;
     if (target == null) return;
-    final text = (await speech.stop()).trim();
-    if (!mounted) return;
     setState(() => recordingFor = null);
-    if (text.isEmpty) return;
-    _applyNote(target, text);
+    final text = await speech.stop();
+    if (mounted) _deliver(target, text);
+  }
+
+  void _deliver(String target, String text) {
+    final t = text.trim();
+    if (t.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Didn't catch anything — tap Record comment and speak again.")));
+      return;
+    }
+    _applyNote(target, t);
   }
 
   void _applyNote(String target, String text) {
@@ -154,11 +180,6 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
       }
     });
     TtsService.instance.speak(AgentStrings(store.language).noteSaved(targets.length), store.language);
-  }
-
-  Future<void> _shutterLongPressStart() async {
-    final p = await _capture();
-    if (p != null) await _startNote(p.id);
   }
 
   Future<void> _typeNote(String target) async {
@@ -188,7 +209,9 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
     final strings = AgentStrings(store.language);
     final focus = photos.isEmpty
         ? null
-        : photos.firstWhere((p) => selected.contains(p.id), orElse: () => photos.first);
+        : photos.firstWhere((p) => p.id == focusId,
+            orElse: () => photos.firstWhere((p) => selected.contains(p.id),
+                orElse: () => photos.first));
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: cropinTitleBar(context, 'Take Photos', actions: [
@@ -227,13 +250,28 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(children: [
-                      const Icon(Icons.mic, color: CropinColors.green),
-                      const SizedBox(width: 8),
+                      speech.live
+                          ? const Icon(Icons.mic, color: CropinColors.green)
+                          : const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  color: CropinColors.green, strokeWidth: 2.5),
+                            ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          '${strings.listening}  ·  ${strings.holdToSpeak}',
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          speech.live
+                              ? '${strings.speakNow}\n${strings.pauseHint}'
+                              : strings.getReady,
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
                         ),
+                      ),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: CropinColors.green),
+                        onPressed: _endNote,
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Done'),
                       ),
                     ]),
                   ),
@@ -251,7 +289,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                       color: Colors.black.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text('Tap = photo · ${strings.holdToSpeak}',
+                    child: Text('Tap the shutter to take a photo, then ${strings.recordComment}',
                         style: const TextStyle(color: Colors.white, fontSize: 11)),
                   ),
                 ),
@@ -305,7 +343,10 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
             final p = photos[i];
             final sel = selected.contains(p.id);
             return GestureDetector(
-              onTap: () => setState(() => sel ? selected.remove(p.id) : selected.add(p.id)),
+              onTap: () => setState(() {
+                sel ? selected.remove(p.id) : selected.add(p.id);
+                focusId = p.id;
+              }),
               child: Stack(children: [
                 Container(
                   width: 65,
@@ -351,7 +392,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
-                p.note.isEmpty ? 'No note yet — hold the shutter or the batch mic and speak' : p.note,
+                p.note.isEmpty ? 'No comment yet' : p.note,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -374,10 +415,28 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                 ),
             ]),
           ),
+          const SizedBox(width: 6),
+          FilledButton.icon(
+            key: const Key('record-comment'),
+            style: FilledButton.styleFrom(
+              backgroundColor:
+                  recordingFor == null ? CropinColors.primary : CropinColors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: () => _recordFor(selected.length > 1 ? 'batch' : p.id),
+            icon: Icon(recordingFor == null ? Icons.mic : Icons.check, size: 16),
+            label: Text(
+                recordingFor == null
+                    ? (selected.length > 1
+                        ? '${AgentStrings(store.language).recordComment} (${selected.length})'
+                        : AgentStrings(store.language).recordComment)
+                    : 'Done',
+                style: const TextStyle(fontSize: 12)),
+          ),
           IconButton(
             tooltip: 'Type or pick an example note',
             icon: const Icon(Icons.keyboard_outlined, color: CropinColors.primary),
-            onPressed: () => _typeNote(p.id),
+            onPressed: recordingFor == null ? () => _typeNote(p.id) : null,
           ),
         ]),
       );
@@ -388,11 +447,9 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
         child: SafeArea(
           top: false,
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            // Batch note: hold to speak one note for all selected (or all) photos
+            // Batch note: one spoken comment for all selected (or all) photos
             GestureDetector(
-              onLongPressStart: photos.isEmpty ? null : (_) => _startNote('batch'),
-              onLongPressEnd: (_) => _endNote(),
-              onTap: photos.isEmpty ? null : () => _typeNote('batch'),
+              onTap: photos.isEmpty ? null : () => _recordFor('batch'),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 CircleAvatar(
                   radius: 21,
@@ -406,9 +463,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
             ),
             GestureDetector(
               key: const Key('shutter'),
-              onTap: _capture,
-              onLongPressStart: (_) => _shutterLongPressStart(),
-              onLongPressEnd: (_) => _endNote(),
+              onTap: recordingFor == null ? _capture : null,
               child: Container(
                 width: 66,
                 height: 66,
@@ -420,13 +475,8 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: recordingFor != null && recordingFor != 'batch'
-                        ? CropinColors.green
-                        : Colors.white,
+                    color: recordingFor != null ? Colors.white38 : Colors.white,
                   ),
-                  child: recordingFor != null && recordingFor != 'batch'
-                      ? const Icon(Icons.mic, color: Colors.white, size: 26)
-                      : null,
                 ),
               ),
             ),

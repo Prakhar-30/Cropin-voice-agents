@@ -24,6 +24,14 @@ class AgentStrings {
       'ಮುಗಿದಾಗ Done ಒತ್ತಿ, ಅಥವಾ ಕೆಲವು ಸೆಕೆಂಡು ಮೌನವಾಗಿರಿ',
       'முடிந்ததும் Done அழுத்துங்கள், அல்லது சில வினாடிகள் அமைதியாக இருங்கள்');
 
+  String get getReady =>
+      _pick('Getting ready…', 'तैयार हो रहा है…', 'ಸಿದ್ಧವಾಗುತ್ತಿದೆ…', 'தயாராகிறது…');
+
+  String get speakNow => _pick('Speak now', 'अब बोलिए', 'ಈಗ ಮಾತನಾಡಿ', 'இப்போது பேசுங்கள்');
+
+  String get recordComment => _pick('Record comment', 'टिप्पणी रिकॉर्ड करें',
+      'ಟಿಪ್ಪಣಿ ರೆಕಾರ್ಡ್ ಮಾಡಿ', 'குறிப்பைப் பதிவு செய்');
+
   String get holdToSpeak => _pick('Hold the shutter and speak', 'शटर दबाकर रखें और बोलें',
       'ಶಟರ್ ಒತ್ತಿ ಹಿಡಿದು ಮಾತನಾಡಿ', 'ஷட்டரை அழுத்திப் பிடித்து பேசுங்கள்');
 

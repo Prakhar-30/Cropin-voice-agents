@@ -24,16 +24,22 @@ class SpeechService extends ChangeNotifier {
   static final SpeechService instance = SpeechService._();
 
   /// Silence after the last spoken word that ends the command.
-  static const endSilence = Duration(milliseconds: 2500);
+  static const endSilence = Duration(milliseconds: 2750);
 
   /// Give up if nothing at all is said for this long after tapping the mic.
   static const noSpeechTimeout = Duration(seconds: 15);
   static const maxDictation = Duration(seconds: 120);
 
-  /// Microphone level (Android rms dB) above which someone is speaking.
-  /// Used as voice activity so slow / partial-less recognisers never make
-  /// the app think the speaker went quiet mid-sentence.
-  static const voiceLevel = 3.0;
+  /// Voice activity: microphone level (Android rms dB) this far above the
+  /// running background-noise floor counts as speech. Adapting to the floor
+  /// keeps field noise from holding the recording open and keeps quiet
+  /// speakers from being cut off.
+  static const voiceAboveNoise = 3.5;
+  double? _noiseFloor;
+
+  /// False from tapping the mic until the recogniser is actually listening
+  /// (the UI shows a "Getting ready…" loader meanwhile).
+  bool live = false;
 
   final SpeechToText _stt = SpeechToText();
   bool _ready = false;
@@ -156,6 +162,8 @@ class SpeechService extends ChangeNotifier {
     _onDevice = await _useOnDevice(lang);
     mode = _onDevice ? 'offline' : (offlineOnly ? 'fallback' : 'online');
     _active = true;
+    live = false;
+    _noiseFloor = null;
     _startedAt = DateTime.now();
     _lastVoiceAt = null;
     state = SpeechState.listening;
@@ -186,11 +194,7 @@ class SpeechService extends ChangeNotifier {
     try {
       await _stt.listen(
         onResult: _handleResult,
-        onSoundLevelChange: (level) {
-          soundLevel = level;
-          if (level > voiceLevel && _active) _lastVoiceAt = DateTime.now();
-          notifyListeners();
-        },
+        onSoundLevelChange: _onLevel,
         listenOptions: SpeechListenOptions(
           localeId: lang.ttsLocale,
           listenFor: const Duration(seconds: 60),
@@ -209,6 +213,27 @@ class SpeechService extends ChangeNotifier {
     }
   }
 
+  void _onLevel(double level) {
+    soundLevel = level;
+    if (!live && _active) live = true;
+    final floor = _noiseFloor;
+    if (floor == null || level < floor) {
+      _noiseFloor = level;
+    } else {
+      _noiseFloor = floor + (level - floor) * 0.01; // rises slowly with steady noise
+    }
+    final threshold = (_noiseFloor ?? 0) + voiceAboveNoise;
+    if (_active && level > (threshold < 1 ? 1 : threshold)) _lastVoiceAt = DateTime.now();
+    notifyListeners();
+  }
+
+  /// Initialises the recogniser and checks the language pack ahead of time so
+  /// tapping the mic starts listening quickly.
+  Future<void> prewarm(AgentLanguage lang) async {
+    if (!await init()) return;
+    await _useOnDevice(lang);
+  }
+
   /// Silence / timeout watchdog. Uses the time of the last spoken word, so
   /// recogniser restarts at pauses never postpone the end of the command.
   void _tick() {
@@ -217,6 +242,10 @@ class SpeechService extends ChangeNotifier {
     final hasText = !_dict.isEmpty || _segPartial.isNotEmpty;
     final heardVoice = _lastVoiceAt != null;
     if (_autoStop && heardVoice && hasText && now.difference(_lastVoiceAt!) >= endSilence) {
+      _finish();
+    } else if (_autoStop && heardVoice && !hasText &&
+        now.difference(_lastVoiceAt!) >= endSilence + const Duration(seconds: 2)) {
+      // spoke but the recogniser never returned words — don't hang forever
       _finish();
     } else if (_autoStop && !heardVoice && !hasText && now.difference(_startedAt) >= noSpeechTimeout) {
       _finish();
@@ -317,6 +346,7 @@ class SpeechService extends ChangeNotifier {
     if (words.isNotEmpty && words != _segPartial) {
       _lastVoiceAt = DateTime.now();
       _errorRestarts = 0;
+      live = true;
     }
     if (r.finalResult) {
       final alts = <String>[];
@@ -338,6 +368,10 @@ class SpeechService extends ChangeNotifier {
   void _handleStatus(String status) {
     if (status == SpeechToText.listeningStatus) {
       _sessionOpen = true;
+      if (_active && !live) {
+        live = true;
+        notifyListeners();
+      }
       return;
     }
     if (status != SpeechToText.doneStatus && status != SpeechToText.notListeningStatus) return;
