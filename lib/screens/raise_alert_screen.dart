@@ -71,31 +71,51 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
     if (text != null) _apply(text);
   }
 
+  // What has been said so far on this screen. Follow-up sentences ("make it
+  // pest type") add to it instead of starting over.
+  String? _ctxCrop;
+  String? _ctxFarmer;
+  String? _ctxLocation;
+  bool _ctxAll = false;
+  bool _ctxNear = false;
+
   void _apply(String text) {
     final parser = AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
     final (_, r) = NBest.pick(
         SpeechService.instance.hypothesesFor(text), parser.parse, NBest.alertScore);
+    final plotCue = r.crop != null ||
+        r.farmerId != null ||
+        r.location != null ||
+        r.nearMe ||
+        r.selectAll;
+    _ctxCrop = r.crop?.value ?? _ctxCrop;
+    _ctxFarmer = r.farmerId?.value ?? _ctxFarmer;
+    _ctxLocation = r.location ?? _ctxLocation;
+    _ctxAll = _ctxAll || r.selectAll;
+    _ctxNear = _ctxNear || r.nearMe;
     // candidate plots: crop / farmer / locality filters, nearest first
     var candidates = store.assets.where((a) => a.status == 'current').toList();
-    if (r.crop != null) candidates = candidates.where((a) => a.crop == r.crop!.value).toList();
-    if (r.farmerId != null) {
-      candidates = candidates.where((a) => a.farmerId == r.farmerId!.value).toList();
+    if (_ctxCrop != null) candidates = candidates.where((a) => a.crop == _ctxCrop).toList();
+    if (_ctxFarmer != null) {
+      candidates = candidates.where((a) => a.farmerId == _ctxFarmer).toList();
     }
-    if (r.location != null) {
-      candidates = candidates.where((a) => a.locality == r.location).toList();
+    if (_ctxLocation != null) {
+      candidates = candidates.where((a) => AppStore.inPlace(a.locality, _ctxLocation!)).toList();
     }
     if (fix != null) {
       candidates.sort((a, b) => _distance(a)!.compareTo(_distance(b)!));
     }
     // "all …" or a farmer / locality without "here" -> every matching plot
-    final many = r.selectAll || (!r.nearMe && (r.farmerId != null || r.location != null));
+    final many =
+        _ctxAll || (!_ctxNear && (_ctxFarmer != null || _ctxLocation != null));
     byVoice = true;
     setState(() {
       parsed = r;
-      note = r.note;
+      note = note.isEmpty ? r.note : '$note. ${r.note}';
       if (r.type != null) type = r.type!.value;
       if (r.severity != null) severity = r.severity!.value;
-      if (candidates.isNotEmpty) {
+      // keep the current plot selection unless this sentence talks about plots
+      if (candidates.isNotEmpty && (plotCue || selected.isEmpty)) {
         selected
           ..clear()
           ..addAll(many ? candidates.map((a) => a.id) : [candidates.first.id]);

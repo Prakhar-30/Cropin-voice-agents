@@ -529,4 +529,27 @@ void main() {
       expect(IntentRouter.detect('add Ramesh Kumar to the paddy project'), AgentIntent.addFarmer);
     });
   });
+
+  group('Hindi alert phrasing', () {
+    final parser = AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+    for (final said in [
+      'एक अलर्ट रेज करो आलू टाइप प्लॉट में और सेवेरिटी मीडियम होगी',
+      'एक अलर्ट रेज करो आलु के प्लॉट में और गंभीरता मध्यम होगी',
+      'एक अलर्ट रेज करो पोटैटो टाइप प्लॉट में और सेवेरिटी मीडियम होगी',
+      'ek alert raise karo potato type plot mein aur severity medium hogi',
+      'ek alert raise karo aloo plot mein severity medium',
+    ]) {
+      test(said, () {
+        final r = parser.parse(said);
+        expect(r.crop!.value, 'Potato');
+        expect(r.severity!.value, 'Medium');
+        expect(IntentRouter.detect(said), AgentIntent.raiseAlert);
+      });
+    }
+
+    test('follow-up sentence gives the type', () {
+      expect(parser.parse('पेस्ट टाइप रेज करनी है').type!.value, 'Pest');
+      expect(parser.parse('pest type raise karni hai').type!.value, 'Pest');
+    });
+  });
 }
