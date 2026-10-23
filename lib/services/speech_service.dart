@@ -67,6 +67,12 @@ class SpeechService extends ChangeNotifier {
   DateTime _lastRestart = DateTime.fromMillisecondsSinceEpoch(0);
   int _errorRestarts = 0;
   bool _restartPending = false;
+
+  /// Our own view of whether a recogniser session is running. The plugin's
+  /// `isListening` flag lags behind `listen()` by a few hundred ms; trusting
+  /// it made the watchdog restart (and so discard) sessions that had only
+  /// just started.
+  bool _sessionOpen = false;
   Timer? _ticker;
   void Function(String text, bool isFinal)? _onResult;
   bool _autoStop = true;
@@ -176,6 +182,7 @@ class SpeechService extends ChangeNotifier {
       _segPartial = '';
     }
     _lastRestart = DateTime.now();
+    _sessionOpen = true;
     try {
       await _stt.listen(
         onResult: _handleResult,
@@ -196,6 +203,7 @@ class SpeechService extends ChangeNotifier {
       );
       return true;
     } catch (e) {
+      _sessionOpen = false;
       lastError = '$e';
       return false;
     }
@@ -214,7 +222,10 @@ class SpeechService extends ChangeNotifier {
       _finish();
     } else if (now.difference(_startedAt) >= maxDictation) {
       _finish();
-    } else if (!_stt.isListening && !_restartPending) {
+    } else if (!_sessionOpen &&
+        !_restartPending &&
+        now.difference(_lastRestart) > const Duration(milliseconds: 1500)) {
+      // safety net in case a session ended without telling us
       _scheduleRestart();
     }
   }
@@ -226,7 +237,7 @@ class SpeechService extends ChangeNotifier {
     final minGap = Duration(milliseconds: _errorRestarts > 5 ? 800 : 400);
     final wait = since < minGap ? minGap - since : const Duration(milliseconds: 120);
     Future.delayed(wait, () {
-      if (_active && !_finishing && !_stt.isListening) {
+      if (_active && !_finishing && !_sessionOpen) {
         _listenSegment();
       } else {
         _restartPending = false;
@@ -257,8 +268,13 @@ class SpeechService extends ChangeNotifier {
     try {
       await _stt.stop().timeout(const Duration(milliseconds: 700));
     } catch (_) {}
-    // the last segment's final result usually lands right after stop()
-    await Future.delayed(const Duration(milliseconds: 350));
+    // The recogniser delivers the words of the current session after stop();
+    // on-device models can take a second. Wait for the session to close.
+    for (var i = 0; i < 15 && _sessionOpen; i++) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    await Future.delayed(const Duration(milliseconds: 150));
+    _sessionOpen = false;
     final text = _dict.withPartial(_segPartial);
     _segPartial = '';
     _active = false;
@@ -277,6 +293,7 @@ class SpeechService extends ChangeNotifier {
     _active = false;
     _finishing = false;
     _restartPending = false;
+    _sessionOpen = false;
     _ticker?.cancel();
     if (wasActive) {
       try {
@@ -311,19 +328,28 @@ class SpeechService extends ChangeNotifier {
       final (clean, _) = Dictation.stripDone(words);
       _dict.add(clean, alts);
       _segPartial = '';
-      if (_active && !_finishing) _scheduleRestart();
+      // The session closes right after its final result; the "done" status
+      // (or the watchdog) starts the next one.
     } else {
       _segPartial = words;
     }
   }
 
   void _handleStatus(String status) {
+    if (status == SpeechToText.listeningStatus) {
+      _sessionOpen = true;
+      return;
+    }
     if (status != SpeechToText.doneStatus && status != SpeechToText.notListeningStatus) return;
+    // Late "done" from the session we just replaced — ignore it.
+    if (DateTime.now().difference(_lastRestart) < const Duration(milliseconds: 300)) return;
+    _sessionOpen = false;
     // A session ended at a pause; keep listening while the command is active.
     if (_active && !_finishing) _scheduleRestart();
   }
 
   void _handleError(SpeechRecognitionError e) {
+    _sessionOpen = false;
     final missingPack = e.errorMsg == 'error_language_unavailable' ||
         e.errorMsg == 'error_language_not_supported';
     if (_active && !_finishing && missingPack && _onDevice && !_fellBack) {
