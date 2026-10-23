@@ -144,7 +144,14 @@ class PhraseMatcher {
       }
       // same-script fuzzy only for long words (avoid कम ~ काम)
       if (p.key.length >= 5) {
-        final s = TextUtils.similarity(window.map((t) => t.key).join(), p.key);
+        final wKey = window.map((t) => t.key).join();
+        final s = TextUtils.similarity(wKey, p.key);
+        // Across Indic scripts a short word must sound the same ("कुमार" is
+        // not Tamil "கேமரா" camera).
+        final sameScript = Transliterator.scriptOf(window.first.raw.runes.first) ==
+            Transliterator.scriptOf(p.words.first.runes.first);
+        final minLen = wKey.length < p.key.length ? wKey.length : p.key.length;
+        if (!sameScript && minLen <= 5 && s < 1) return 0;
         return s >= 0.85 ? s : 0;
       }
       return 0;
