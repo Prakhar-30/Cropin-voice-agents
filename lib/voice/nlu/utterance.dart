@@ -151,7 +151,12 @@ class PhraseMatcher {
     }
 
     final wKey = window.map((t) => t.key).join();
-    if (wKey == p.key) return p.key.length <= 3 ? 0.95 : 1.0;
+    if (wKey == p.key) {
+      // A short word that only *sounds* like a word in another script
+      // ("paddy" ~ ಪಟ್ಟಿ "list") is weak evidence — never enough for a command.
+      if (windowIndic != p.isIndic && p.key.length <= 4) return 0.85;
+      return p.key.length <= 3 ? 0.95 : 1.0;
+    }
     // English plural: "acres", "plots"
     if (!windowIndic && wKey == '${p.key}s') return 0.93;
     if (p.key.length <= 3 || wKey.length <= 3) return 0;
