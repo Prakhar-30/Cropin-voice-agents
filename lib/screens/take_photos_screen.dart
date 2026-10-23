@@ -124,7 +124,7 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
 
   Future<void> _startNote(String target) async {
     setState(() => recordingFor = target);
-    final ok = await speech.start(store.language);
+    final ok = await speech.start(store.language, autoStopOnSilence: false);
     if (!ok && mounted) {
       setState(() => recordingFor = null);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

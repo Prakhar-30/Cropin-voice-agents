@@ -55,13 +55,6 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
   String? notice;
 
   @override
-  void initState() {
-    super.initState();
-    // Opening the voice agent starts recording straight away.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
-  }
-
-  @override
   void dispose() {
     pulse.dispose();
     typed.dispose();

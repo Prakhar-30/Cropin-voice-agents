@@ -24,11 +24,16 @@ class SpeechService extends ChangeNotifier {
   static final SpeechService instance = SpeechService._();
 
   /// Silence after the last spoken word that ends the command.
-  static const endSilence = Duration(milliseconds: 2750);
+  static const endSilence = Duration(milliseconds: 2500);
 
-  /// Give up if nothing at all is said for this long.
-  static const noSpeechTimeout = Duration(seconds: 8);
-  static const maxDictation = Duration(seconds: 90);
+  /// Give up if nothing at all is said for this long after tapping the mic.
+  static const noSpeechTimeout = Duration(seconds: 15);
+  static const maxDictation = Duration(seconds: 120);
+
+  /// Microphone level (Android rms dB) above which someone is speaking.
+  /// Used as voice activity so slow / partial-less recognisers never make
+  /// the app think the speaker went quiet mid-sentence.
+  static const voiceLevel = 3.0;
 
   final SpeechToText _stt = SpeechToText();
   bool _ready = false;
@@ -64,6 +69,7 @@ class SpeechService extends ChangeNotifier {
   bool _restartPending = false;
   Timer? _ticker;
   void Function(String text, bool isFinal)? _onResult;
+  bool _autoStop = true;
 
   /// Pack status is cached per language so starting is instant.
   final Map<AgentLanguage, (bool, DateTime)> _packCache = {};
@@ -126,9 +132,11 @@ class SpeechService extends ChangeNotifier {
 
   /// Starts a new dictation in [lang]. [onResult] is called once with
   /// `isFinal == true` when the command has ended.
+  /// With [autoStopOnSilence] false (hold-to-talk) only [stop] ends it.
   Future<bool> start(AgentLanguage lang,
-      {void Function(String text, bool isFinal)? onResult}) async {
+      {void Function(String text, bool isFinal)? onResult, bool autoStopOnSilence = true}) async {
     await _halt();
+    _autoStop = autoStopOnSilence;
     if (!await init()) return false;
     _dict.clear();
     _segPartial = '';
@@ -173,6 +181,7 @@ class SpeechService extends ChangeNotifier {
         onResult: _handleResult,
         onSoundLevelChange: (level) {
           soundLevel = level;
+          if (level > voiceLevel && _active) _lastVoiceAt = DateTime.now();
           notifyListeners();
         },
         listenOptions: SpeechListenOptions(
@@ -198,9 +207,10 @@ class SpeechService extends ChangeNotifier {
     if (!_active || _finishing) return;
     final now = DateTime.now();
     final hasText = !_dict.isEmpty || _segPartial.isNotEmpty;
-    if (hasText && _lastVoiceAt != null && now.difference(_lastVoiceAt!) >= endSilence) {
+    final heardVoice = _lastVoiceAt != null;
+    if (_autoStop && heardVoice && hasText && now.difference(_lastVoiceAt!) >= endSilence) {
       _finish();
-    } else if (!hasText && now.difference(_startedAt) >= noSpeechTimeout) {
+    } else if (_autoStop && !heardVoice && !hasText && now.difference(_startedAt) >= noSpeechTimeout) {
       _finish();
     } else if (now.difference(_startedAt) >= maxDictation) {
       _finish();
@@ -213,9 +223,8 @@ class SpeechService extends ChangeNotifier {
     if (!_active || _finishing || _restartPending) return;
     _restartPending = true;
     final since = DateTime.now().difference(_lastRestart);
-    final wait = since < const Duration(milliseconds: 400)
-        ? const Duration(milliseconds: 400) - since
-        : const Duration(milliseconds: 120);
+    final minGap = Duration(milliseconds: _errorRestarts > 5 ? 800 : 400);
+    final wait = since < minGap ? minGap - since : const Duration(milliseconds: 120);
     Future.delayed(wait, () {
       if (_active && !_finishing && !_stt.isListening) {
         _listenSegment();
@@ -298,14 +307,11 @@ class SpeechService extends ChangeNotifier {
         final w = a.recognizedWords.trim();
         if (w.isNotEmpty && !alts.contains(w)) alts.add(w);
       }
-      final (clean, done) = Dictation.stripDone(words);
+      // Only Done / silence end the recording; a trailing "done" is just dropped.
+      final (clean, _) = Dictation.stripDone(words);
       _dict.add(clean, alts);
       _segPartial = '';
-      if (done && _active) {
-        _finish();
-      } else if (_active && !_finishing) {
-        _scheduleRestart();
-      }
+      if (_active && !_finishing) _scheduleRestart();
     } else {
       _segPartial = words;
     }
@@ -334,8 +340,9 @@ class SpeechService extends ChangeNotifier {
       _scheduleRestart();
       return;
     }
-    if (_active && !_finishing && _errorRestarts < 15) {
-      // Pauses surface as "no match" / "speech timeout"; just keep listening.
+    if (_active && !_finishing && _errorRestarts < 200) {
+      // Pauses and recogniser hiccups surface as errors; never stop because
+      // of them — keep listening until Done or real silence.
       _errorRestarts++;
       _scheduleRestart();
       return;
