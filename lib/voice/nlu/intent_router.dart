@@ -32,7 +32,15 @@ class IntentRouter {
     final farmerWord = _score(u, Lexicon.entity['farmers']!) >= 0.9;
     final plotWord = _score(u, Lexicon.entity['assets']!) >= 0.9;
 
-    if (s('add_farmer') >= 0.9 || (add && farmerWord && !plotWord)) {
+    // Dictating a farmer's details ("farmer Ramesh Kumar, his mobile number
+    // is …, paddy project, plot area 7 acres") is Add Farmer even when plot
+    // words appear — unless the user explicitly asked to show / search.
+    final searchVerb = s('search') >= 0.9;
+    final labels = _score(u, Lexicon.farmerLabels) >= 0.9;
+    final phone = NumberExtractor.extractPhone(Utterance(text)) != null;
+    if (s('add_farmer') >= 0.9 ||
+        (add && farmerWord && !plotWord) ||
+        (!searchVerb && (phone || (labels && (farmerWord || add))))) {
       return AgentIntent.addFarmer;
     }
     if (s('add_asset') >= 0.9 || (add && plotWord)) return AgentIntent.addAsset;

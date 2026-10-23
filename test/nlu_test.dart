@@ -377,4 +377,35 @@ void main() {
           AgentIntent.addFarmer);
     });
   });
+
+  group('home routing with context', () {
+    const said = 'add farmer Ramesh Kumar, his mobile number is 6867116104, and add him to '
+        'the paddy project, and the plot area is 7 acres';
+    test('goes to Add Farmer, not plot search', () {
+      expect(IntentRouter.detect(said), AgentIntent.addFarmer);
+      expect(IntentRouter.detect(said.replaceFirst('add farmer', 'at farmer')),
+          AgentIntent.addFarmer);
+      expect(IntentRouter.detect('farmer Ramesh Kumar mobile number 6867116104 plot 7 acres'),
+          AgentIntent.addFarmer);
+    });
+
+    test('fills every field from it', () {
+      final r = formParser().parse(said.replaceFirst('add farmer', 'at farmer'));
+      expect(r.name!.value, 'Ramesh Kumar');
+      expect(r.phone!.value, '6867116104');
+      expect(r.projectId!.value, 'p5');
+      expect(r.area!.value, 7);
+      expect(r.hasAssetDetails, isTrue);
+    });
+
+    test('a missed digit still fills the mobile field (flagged)', () {
+      final r = formParser().parse('farmer Ramesh Kumar mobile number 686711610');
+      expect(r.phone!.value, '686711610');
+      expect(r.phone!.needsCheck, isTrue);
+    });
+
+    test('explicit search still searches', () {
+      expect(IntentRouter.detect('show plots with 7 acres'), AgentIntent.search);
+    });
+  });
 }

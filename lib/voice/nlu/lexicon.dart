@@ -166,11 +166,17 @@ class Lexicon {
   static const Map<String, List<String>> intent = {
     'add_farmer': [
       'add farmer', 'new farmer', 'register farmer', 'create farmer', 'farmer add',
+      // recogniser homophones of "add"
+      'at farmer', 'ad farmer', 'add a farmer', 'add a new farmer', 'add new farmer',
+      'at a farmer', 'at new farmer', 'and farmer', 'enroll farmer', 'onboard farmer',
+      'add the farmer', 'at the farmer',
       'किसान जोड़ो', 'किसान जोड़ें', 'नया किसान', 'ಹೊಸ ರೈತ', 'ರೈತ ಸೇರಿಸಿ', 'ರೈತರನ್ನು ಸೇರಿಸಿ',
       'புதிய விவசாயி', 'விவசாயி சேர்', 'விவசாயியை சேர்',
     ],
     'add_asset': [
       'add asset', 'add plot', 'new plot', 'new asset', 'create plot', 'add farm',
+      'at asset', 'ad asset', 'at plot', 'add a plot', 'add a new plot', 'add land',
+      'add field', 'at a plot',
       'नया खेत', 'खेत जोड़ो', 'प्लॉट जोड़ो', 'ಹೊಸ ಜಮೀನು', 'ಜಮೀನು ಸೇರಿಸಿ', 'ಪ್ಲಾಟ್ ಸೇರಿಸಿ',
       'ಹೊಸ ಪ್ಲಾಟ್', 'புதிய நிலம்', 'நிலம் சேர்', 'புதிய பிளாட்', 'பிளாட் சேர்',
     ],
@@ -279,6 +285,12 @@ class Lexicon {
     'மற்றும்', 'உள்ள', 'ஆகும்', 'அவர்', 'அவரது', 'பெயர்', 'மொபைல்', 'எண்', 'நம்பர்',
     'போன்', 'திட்டம்', 'ப்ராஜெக்ட்', 'மண்', 'பாசனம்', 'நீர்ப்பாசனம்', 'விவசாயி', 'சேர்',
     'சேர்க்கவும்', 'புதிய', 'பயிர்', 'நிலம்', 'பிளாட்', 'தயவுசெய்து', 'அது', 'இது', 'பரப்பளவு', 'தாக்குதல்',
+  ];
+
+  /// Labels that only appear when someone is dictating a farmer's details.
+  static const List<String> farmerLabels = [
+    'mobile', 'phone', 'number', 'contact', 'name', 'naam', 'नाम', 'मोबाइल', 'नंबर', 'फोन',
+    'ಹೆಸರು', 'ಮೊಬೈಲ್', 'ನಂಬರ್', 'ಫೋನ್', 'பெயர்', 'மொபைல்', 'எண்', 'நம்பர்', 'போன்',
   ];
 
   /// Words that introduce a person's name ("name is …", "ಹೆಸರು …").

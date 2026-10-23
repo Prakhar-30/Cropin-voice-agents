@@ -40,9 +40,38 @@ class NumberExtractor {
     PhoneValue? last;
     while (true) {
       final p = _nextPhone(u);
-      if (p == null) return last;
+      if (p == null) break;
       last = p;
     }
+    return last ?? _partialPhone(u);
+  }
+
+  /// A long digit run (8+ digits) that isn't a full mobile number — usually a
+  /// digit the recogniser missed. Returned as-is so the field gets filled and
+  /// flagged for checking instead of being lost.
+  static PhoneValue? _partialPhone(Utterance u) {
+    final t = u.tokens;
+    var i = 0;
+    while (i < t.length) {
+      final idx = <int>[];
+      var digits = '';
+      var j = i;
+      while (j < t.length && !t[j].used) {
+        final d = _digitString(t[j]);
+        if (d == null) break;
+        idx.add(j);
+        digits += d;
+        j++;
+      }
+      if (digits.length >= 8 && digits.length <= 12) {
+        for (final k in idx) {
+          t[k].used = true;
+        }
+        return PhoneValue(digits, idx.map((k) => t[k].raw).join(' '));
+      }
+      i = j == i ? i + 1 : j;
+    }
+    return null;
   }
 
   static PhoneValue? _nextPhone(Utterance u) {
