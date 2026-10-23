@@ -24,7 +24,11 @@ The Home mic is a router: one utterance goes to the right agent (add farmer, add
 
 ## How it stays offline
 
-* **Speech → text**: Android's on-device recogniser via `speech_to_text`, with `onDevice: true` (`EXTRA_PREFER_OFFLINE`). No audio leaves the phone. It needs the offline speech pack for each language. To install one: Google app → Settings → Voice → Offline speech recognition → download Kannada / Tamil / Hindi / English (India).
+* **Speech → text**: the app's own offline recogniser, built on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx):
+  * the microphone streams 16 kHz audio into [Silero VAD](https://github.com/snakers4/silero-vad) on a background isolate. Each stretch of speech is decoded as soon as a short pause ends it, and the command ends after **2.75 s of silence** or **Done**. That gives one continuous recording, with no beeps and no Google language packs;
+  * models: [AI4Bharat IndicConformer](https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx) (CTC, int8) for Hindi, Kannada and Tamil, about 190 MB each, and NeMo conformer-small for English, about 45 MB;
+  * each language's model downloads once, inside the app, from this repo's [`speech-models-v1`](https://github.com/Prakhar-30/Cropin-voice-agents/releases/tag/speech-models-v1) release. Downloads resume if interrupted, and you manage them in *Voice settings* or from the prompt in the voice sheet. The `Speech models` workflow mirrors the files there;
+  * until a language's model is downloaded, Android's recogniser (`speech_to_text`, on-device when its pack is installed) is used as a fallback.
 * **Understanding (NLU)**: fully on-device and rule-based, in `lib/voice/nlu/`:
   * **N-best rescoring**: every alternative transcript the recogniser returns is parsed, and the one that fills the most slots with the fewest unknown words wins ([Ganesan et al., ACL 2021](https://arxiv.org/abs/2106.06519); [Sun et al., 2023](https://arxiv.org/abs/2311.07418));
   * **phonetically weighted edit distance**: vowel swaps, dropped or added vowels and close consonants (r/l, n/m) cost less than other edits ([Raghuvanshi et al., EMNLP 2019](https://aclanthology.org/D19-3011/));
@@ -35,9 +39,7 @@ The Home mic is a router: one utterance goes to the right agent (add farmer, add
   * slot parsers for forms, alerts, search and photo notes, plus an intent router.
 * **Text → speech**: the on-device TTS voices through `flutter_tts`.
 * **GPS** works offline. If there's no fix, or the phone is far from the demo plots, the app falls back to a demo location in BTM Layout, Bengaluru. You can change this in *Voice settings*.
-* The release manifest declares **no INTERNET permission**.
-
-If a speech pack isn't installed, every agent still works through **Type instead** or the **Try saying** example chips in the voice sheet.
+* **INTERNET** is used only to download the voice models. No audio or text ever leaves the phone.
 
 ## Demo data
 
@@ -58,7 +60,8 @@ lib/
   main.dart
   theme/app_theme.dart            Cropin Grow colours
   data/                           models, demo data, in-memory store + search
-  services/                       speech (on-device STT), TTS, GPS
+  services/                       speech (sherpa-onnx engine, model downloads,
+                                  Android fallback), TTS, GPS
   voice/
     agent_language.dart           EN / HI / KN / TA
     agent_strings.dart            localised agent replies + example utterances
