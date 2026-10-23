@@ -29,11 +29,13 @@ class VoiceRouter {
       {SearchEntity? defaultEntity, String exampleKey = 'home'}) async {
     final text = await showVoiceSheet(
       context,
-      exampleKey: exampleKey,
-      title: defaultEntity == null ? 'Ask Cropin' : 'Voice search',
-      subtitle: defaultEntity == null
-          ? 'Add farmer · Add asset · Raise alert · Photos · Search · My day'
-          : 'Say what you are looking for',
+      title: 'Talk to Cropin',
+      subtitle: switch (defaultEntity) {
+        SearchEntity.farmers => 'Find or open a farmer, add a farmer — or ask anything',
+        SearchEntity.assets => 'Find, add or assign plots, raise alerts — or ask anything',
+        SearchEntity.tasks => "Ask what's due, overdue or done — or anything else",
+        null => 'Tasks · farmers · plots · add · assign · raise alerts',
+      },
     );
     if (text == null || !context.mounted) return;
     await route(context, text, defaultEntity: defaultEntity);

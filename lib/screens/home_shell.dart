@@ -82,6 +82,21 @@ class _HomeShellState extends State<HomeShell> {
             TasksTab(text: texts[NavController.tasks]),
             const ReportsTab(),
           ]),
+          // One voice entry point on every tab (extended FAB, like the
+          // persistent "Talk" button of Gemini / ChatGPT). Inside a section
+          // it searches that section by default.
+          floatingActionButton: FloatingActionButton.extended(
+            key: const Key('talk-to-cropin'),
+            heroTag: 'talk',
+            backgroundColor: CropinColors.green,
+            foregroundColor: Colors.white,
+            elevation: 4,
+            onPressed: () => VoiceRouter.listenAndRoute(context, defaultEntity: _entityFor(tab)),
+            icon: const Icon(Icons.mic),
+            label: const Text('Talk to Cropin',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
           bottomNavigationBar: _BottomNav(index: tab, onTap: nav.goTo),
         );
       },

@@ -13,7 +13,6 @@ import '../voice/agent_strings.dart';
 import '../voice/nlu/photo_note_parser.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/top_bar.dart';
-import '../widgets/voice_sheet.dart';
 
 /// Take Photos with voice notes: hold the shutter and talk. The transcript
 /// becomes the photo comment and can be applied to a whole batch.
@@ -182,11 +181,29 @@ class _TakePhotosScreenState extends State<TakePhotosScreen> with WidgetsBinding
     TtsService.instance.speak(AgentStrings(store.language).noteSaved(targets.length), store.language);
   }
 
+  /// Keyboard fallback for a comment.
   Future<void> _typeNote(String target) async {
-    final text = await showVoiceSheet(context,
-        exampleKey: 'photo', title: 'Photo note', subtitle: 'Speak or type the observation');
-    if (text != null && mounted) _applyNote(target, text);
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Photo comment'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Type the observation'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Save')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (text != null && text.trim().isNotEmpty && mounted) _applyNote(target, text.trim());
   }
+
 
   void _save() {
     if (photos.isEmpty) {

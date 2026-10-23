@@ -3,18 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
-import '../services/speech_pack_service.dart';
 import '../services/speech_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_language.dart';
 import '../voice/agent_strings.dart';
 
-/// Opens the offline voice agent sheet and returns the final utterance
-/// (spoken or typed), or null when dismissed.
+/// Opens the voice assistant sheet. Recording starts as soon as the sheet is
+/// up (a loader shows until the microphone is live) and ends after 2.75 s of
+/// silence or when the user taps Done. Returns the recognised text, or null.
 Future<String?> showVoiceSheet(
   BuildContext context, {
-  required String exampleKey,
-  String title = 'Voice assistant',
+  String exampleKey = 'home',
+  String title = 'Cropin Voice',
   String? subtitle,
 }) {
   return showModalBottomSheet<String>(
@@ -22,14 +22,13 @@ Future<String?> showVoiceSheet(
     isScrollControlled: true,
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-    builder: (_) => VoiceSheet(exampleKey: exampleKey, title: title, subtitle: subtitle),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (_) => VoiceSheet(title: title, subtitle: subtitle),
   );
 }
 
 class VoiceSheet extends StatefulWidget {
-  const VoiceSheet({super.key, required this.exampleKey, required this.title, this.subtitle});
-  final String exampleKey;
+  const VoiceSheet({super.key, required this.title, this.subtitle});
   final String title;
   final String? subtitle;
 
@@ -37,374 +36,274 @@ class VoiceSheet extends StatefulWidget {
   State<VoiceSheet> createState() => _VoiceSheetState();
 }
 
+enum _Phase { starting, listening, processing, captured, empty, error }
+
 class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateMixin {
   final speech = SpeechService.instance;
   final store = AppStore.instance;
-  final typed = TextEditingController();
   late final AnimationController pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
         ..repeat(reverse: true);
-  bool typing = false;
-  bool done = false;
 
-  /// A start / stop is in flight — ignore extra taps.
-  bool busy = false;
+  _Phase phase = _Phase.starting;
+  String captured = '';
+  bool closed = false;
 
-  /// Transcript shown briefly once recording has ended.
-  String? captured;
-  String? notice;
+  /// Each recording gets a number so results of a cancelled one are ignored.
+  int _run = 0;
 
   @override
   void initState() {
     super.initState();
-    // Warm up the recogniser so the first tap starts listening quickly.
-    speech.prewarm(store.language);
+    // Recording starts as soon as the sheet is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _record());
   }
 
   @override
   void dispose() {
+    closed = true;
+    _run++;
     pulse.dispose();
-    typed.dispose();
-    if (speech.isListening) speech.cancel();
+    speech.cancel();
     super.dispose();
   }
 
-  Future<void> _listen() async {
-    if (!mounted || busy || done) return;
+  Future<void> _record() async {
+    if (closed) return;
+    final run = ++_run;
     setState(() {
-      busy = true;
-      typing = false;
-      captured = null;
-      notice = null;
+      phase = _Phase.starting;
+      captured = '';
     });
     final ok = await speech.start(store.language, onResult: (text, isFinal) {
-      if (isFinal) _onCaptured(text);
+      if (isFinal && run == _run) _onText(text);
     });
-    if (!mounted) return;
-    setState(() {
-      busy = false;
-      if (!ok) notice = speech.lastError ?? 'Microphone unavailable — type instead.';
-    });
+    if (closed || run != _run) return;
+    if (!ok) setState(() => phase = _Phase.error);
   }
 
-  void _onCaptured(String text) {
-    if (!mounted || done) return;
+  void _onText(String text) {
+    if (closed) return;
     final t = text.trim();
     if (t.isEmpty) {
-      setState(() => notice = "Didn't catch anything — tap the mic and speak again.");
+      setState(() => phase = _Phase.empty);
       return;
     }
-    setState(() => captured = t);
-    Timer(const Duration(milliseconds: 700), () => _submit(t));
-  }
-
-  /// Mic / Done: stop and use what was said, or start a new recording.
-  Future<void> _toggle() async {
-    if (busy || done) return;
-    if (speech.isListening) {
-      setState(() => busy = true);
-      final text = await speech.stop();
-      if (!mounted) return;
-      setState(() => busy = false);
-      _onCaptured(text);
-    } else {
-      await _listen();
-    }
-  }
-
-  void _submit(String text) {
-    if (done || !mounted || text.trim().isEmpty) return;
-    done = true;
-    if (speech.isListening) speech.cancel();
-    Navigator.of(context).pop(text.trim());
-  }
-
-  /// Switching language never auto-starts; the user taps the mic.
-  Future<void> _setLanguage(AgentLanguage l) async {
-    if (busy) return;
-    store.language = l;
-    if (speech.isListening) await speech.cancel();
-    speech.prewarm(l);
-    if (!mounted) return;
     setState(() {
-      captured = null;
-      notice = null;
+      captured = t;
+      phase = _Phase.captured;
     });
+    Timer(const Duration(milliseconds: 650), () {
+      if (!closed && mounted) Navigator.of(context).pop(t);
+    });
+  }
+
+  /// Done: stop now and use what was said.
+  Future<void> _done() async {
+    if (phase != _Phase.listening && phase != _Phase.starting) return;
+    final run = _run;
+    setState(() => phase = _Phase.processing);
+    final text = await speech.stop();
+    if (closed || run != _run) return;
+    _onText(text);
+  }
+
+  /// Switching language restarts the recording in that language.
+  Future<void> _setLanguage(AgentLanguage l) async {
+    if (l == store.language) return;
+    store.language = l;
+    _run++;
+    await speech.cancel();
+    if (!closed) _record();
   }
 
   @override
   Widget build(BuildContext context) {
     final strings = AgentStrings(store.language);
-    final examples = AgentStrings.examples(widget.exampleKey)[store.language] ?? const [];
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SafeArea(
-        child: ListenableBuilder(
-          listenable: speech,
-          builder: (context, _) {
-            final listening = speech.isListening;
-            final err = speech.state == SpeechState.error ? speech.lastError : null;
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 34,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: CropinColors.border, borderRadius: BorderRadius.circular(2)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(widget.title,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        if (widget.subtitle != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(widget.subtitle!,
-                                style: const TextStyle(fontSize: 11, color: CropinColors.subText)),
-                          ),
-                      ]),
-                    ),
-                    const _OfflineBadge(),
-                  ]),
-                  const SizedBox(height: 12),
-                  _LanguagePicker(value: store.language, onChanged: _setLanguage),
-                  const SizedBox(height: 18),
-                  Center(
-                    child: GestureDetector(
-                      onTap: _toggle,
-                      child: AnimatedBuilder(
-                        animation: pulse,
-                        builder: (context, child) {
-                          final level = (speech.soundLevel.clamp(-2, 10) + 2) / 12;
-                          final grow = listening ? 10 + 14 * pulse.value + 18 * level : 0.0;
-                          return Container(
-                            width: 71 + grow,
-                            height: 71 + grow,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: (listening && speech.live ? CropinColors.green : CropinColors.primary)
-                                  .withValues(alpha: 0.15),
-                            ),
-                            child: child,
-                          );
-                        },
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: listening && speech.live ? CropinColors.green : CropinColors.primary,
-                          ),
-                          child: listening && !speech.live
-                              ? const Padding(
-                                  padding: EdgeInsets.all(18),
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 3),
-                                )
-                              : Icon(listening ? Icons.mic : Icons.mic_none,
-                                  color: Colors.white, size: 31),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    listening
-                        ? speech.live
-                            ? '${strings.speakNow}\n${strings.pauseHint}'
-                            : strings.getReady
-                        : captured != null
-                            ? '✓'
-                            : busy || speech.state == SpeechState.initializing
-                                ? '…'
-                                : strings.tapToSpeak,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: CropinColors.subText),
-                  ),
-                  if (listening)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: FilledButton.icon(
-                          key: const Key('dictation-done'),
-                          style: FilledButton.styleFrom(backgroundColor: CropinColors.green),
-                          onPressed: busy ? null : _toggle,
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Done'),
-                        ),
-                      ),
-                    ),
-                  if (captured != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: CropinColors.searchFill,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(captured!,
-                          style: const TextStyle(fontSize: 15, color: CropinColors.text)),
-                    ),
-                  ],
-                  if (notice != null && err == null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF4E0),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(notice!, style: const TextStyle(fontSize: 11)),
-                    ),
-                  ],
-                  if (err != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF4E0),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Icon(Icons.info_outline, color: CropinColors.voiceCheck, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(err, style: const TextStyle(fontSize: 11))),
-                      ]),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  if (typing)
-                    TextField(
-                      controller: typed,
-                      autofocus: true,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: _submit,
-                      decoration: InputDecoration(
-                        hintText: 'Type what you would say…',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.send, color: CropinColors.primary),
-                          onPressed: () => _submit(typed.text),
-                        ),
-                      ),
-                    )
-                  else
-                    Align(
-                      child: TextButton.icon(
-                        onPressed: () async {
-                          if (speech.isListening) await speech.cancel();
-                          setState(() => typing = true);
-                        },
-                        icon: const Icon(Icons.keyboard_outlined),
-                        label: const Text('Type instead'),
-                      ),
-                    ),
-                  if (examples.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    const Text('Try saying',
-                        style: TextStyle(fontWeight: FontWeight.w600, color: CropinColors.subText)),
-                    const SizedBox(height: 6),
-                    for (final e in examples)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => _submit(e),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: CropinColors.border),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(children: [
-                              const Icon(Icons.format_quote, size: 15, color: CropinColors.hint),
-                              const SizedBox(width: 6),
-                              Expanded(child: Text(e, style: const TextStyle(fontSize: 12))),
-                            ]),
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
+    return SafeArea(
+      child: ListenableBuilder(
+        listenable: speech,
+        builder: (context, _) {
+          // Move from "starting" to "listening" once the recogniser is live.
+          if (phase == _Phase.starting && speech.isListening && speech.live) {
+            phase = _Phase.listening;
+          }
+          if ((phase == _Phase.starting || phase == _Phase.listening) &&
+              speech.state == SpeechState.error) {
+            phase = _Phase.error;
+          }
+          final live = phase == _Phase.listening;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: CropinColors.border, borderRadius: BorderRadius.circular(2)),
               ),
-            );
-          },
-        ),
+              const SizedBox(height: 14),
+              Text(widget.title,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              if (widget.subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(widget.subtitle!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+              ],
+              const SizedBox(height: 14),
+              _LanguageTabs(value: store.language, onChanged: _setLanguage),
+              const SizedBox(height: 24),
+              // Mic: loader while starting, pulsing while listening, tap to finish.
+              GestureDetector(
+                onTap: switch (phase) {
+                  _Phase.listening || _Phase.starting => _done,
+                  _Phase.empty || _Phase.error => _record,
+                  _ => null,
+                },
+                child: AnimatedBuilder(
+                  animation: pulse,
+                  builder: (context, child) {
+                    final level = ((speech.soundLevel.clamp(-2, 10) + 2) / 12).toDouble();
+                    final grow = live ? 8 + 10 * pulse.value + 16 * level : 0.0;
+                    return Container(
+                      width: 84 + grow,
+                      height: 84 + grow,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (live ? CropinColors.green : CropinColors.primary)
+                            .withValues(alpha: 0.14),
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: live ? CropinColors.green : CropinColors.primary,
+                    ),
+                    child: switch (phase) {
+                      _Phase.starting || _Phase.processing => const Padding(
+                          padding: EdgeInsets.all(22),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                        ),
+                      _Phase.captured => const Icon(Icons.check, color: Colors.white, size: 34),
+                      _Phase.empty || _Phase.error =>
+                        const Icon(Icons.refresh, color: Colors.white, size: 32),
+                      _ => const Icon(Icons.mic, color: Colors.white, size: 34),
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                switch (phase) {
+                  _Phase.starting => strings.getReady,
+                  _Phase.listening => strings.speakNow,
+                  _Phase.processing => '…',
+                  _Phase.captured => '',
+                  _Phase.empty => strings.notHeard,
+                  _Phase.error => speech.lastError ?? strings.notHeard,
+                },
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: phase == _Phase.listening ? 16 : 13,
+                  fontWeight: phase == _Phase.listening ? FontWeight.w600 : FontWeight.w400,
+                  color: phase == _Phase.error ? CropinColors.attention : CropinColors.text,
+                ),
+              ),
+              if (phase == _Phase.listening) ...[
+                const SizedBox(height: 4),
+                Text(strings.pauseHint,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: CropinColors.subText)),
+              ],
+              if (phase == _Phase.captured) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: CropinColors.searchFill,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(captured, style: const TextStyle(fontSize: 15)),
+                ),
+              ],
+              const SizedBox(height: 18),
+              if (phase == _Phase.listening || phase == _Phase.starting)
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton.icon(
+                    key: const Key('dictation-done'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CropinColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
+                    ),
+                    onPressed: _done,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Done', style: TextStyle(fontSize: 15)),
+                  ),
+                ),
+              if (phase == _Phase.empty || phase == _Phase.error)
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
+                    ),
+                    onPressed: _record,
+                    icon: const Icon(Icons.mic),
+                    label: Text(strings.tryAgain, style: const TextStyle(fontSize: 15)),
+                  ),
+                ),
+            ]),
+          );
+        },
       ),
     );
   }
 }
 
-class _OfflineBadge extends StatelessWidget {
-  const _OfflineBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final packs = SpeechPackService.instance;
-    return ListenableBuilder(
-      listenable: packs,
-      builder: (context, _) {
-        final speech = SpeechService.instance;
-        final lang = AppStore.instance.language;
-        final (label, icon, color) = switch (speech.mode) {
-          'fallback' => (
-              packs.state[lang] == PackState.downloading
-                  ? 'Pack ${packs.progress[lang] ?? 0}% · standard mode'
-                  : 'Standard mode',
-              Icons.downloading,
-              CropinColors.voiceCheck,
-            ),
-          'online' => ('Online allowed', Icons.cloud_queue, CropinColors.voiceCheck),
-          _ => ('Offline · on-device', Icons.cloud_off, CropinColors.voiceFilled),
-        };
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 11, color: color),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
-          ]),
-        );
-      },
-    );
-  }
-}
-
-class _LanguagePicker extends StatelessWidget {
-  const _LanguagePicker({required this.value, required this.onChanged});
+/// Segmented language switcher (English / हिन्दी / ಕನ್ನಡ / தமிழ்).
+class _LanguageTabs extends StatelessWidget {
+  const _LanguageTabs({required this.value, required this.onChanged});
   final AgentLanguage value;
   final ValueChanged<AgentLanguage> onChanged;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: 8,
-        runSpacing: 6,
-        children: [
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: CropinColors.searchFill,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(children: [
           for (final l in AgentLanguage.values)
-            ChoiceChip(
-              label: Text(l.nativeName),
-              selected: l == value,
-              onSelected: (_) => onChanged(l),
-              selectedColor: CropinColors.primary,
-              labelStyle: TextStyle(color: l == value ? Colors.white : CropinColors.text),
-              showCheckmark: false,
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(l),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: l == value ? CropinColors.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(19),
+                  ),
+                  child: Text(l.nativeName,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: l == value ? Colors.white : CropinColors.text)),
+                ),
+              ),
             ),
-        ],
+        ]),
       );
 }
 

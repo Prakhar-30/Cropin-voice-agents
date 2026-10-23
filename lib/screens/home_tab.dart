@@ -7,11 +7,9 @@ import '../voice/nlu/search_parser.dart';
 import '../widgets/common.dart';
 import 'add_asset_screen.dart';
 import 'add_farmer_screen.dart';
-import 'briefing_screen.dart';
 import 'nav_controller.dart';
 import 'raise_alert_screen.dart';
 import 'take_photos_screen.dart';
-import 'voice_router.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -53,9 +51,6 @@ class _HomeTabState extends State<HomeTab> {
           ]),
           const SizedBox(height: 16),
           const SectionGap(height: 8),
-          _VoiceCard(
-            onAsk: () => VoiceRouter.listenAndRoute(context),
-            onBriefing: () => _push(const BriefingScreen(autoSpeak: true)),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
@@ -176,7 +171,7 @@ class _HomeTabState extends State<HomeTab> {
                     style: const TextStyle(fontSize: 12, color: CropinColors.text)),
               ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 96), // room for the Talk to Cropin button
         ],
       ),
     );
@@ -203,73 +198,6 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       );
-}
-
-class _VoiceCard extends StatelessWidget {
-  const _VoiceCard({required this.onAsk, required this.onBriefing});
-  final VoidCallback onAsk;
-  final VoidCallback onBriefing;
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = AppStore.instance.language;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF24475A), Color(0xFF2F6B5E)]),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.graphic_eq, color: CropinColors.green, size: 21),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text('Voice Agents',
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-            child: Text('Offline · ${lang.nativeName}',
-                style: const TextStyle(color: Colors.white, fontSize: 10)),
-          ),
-        ]),
-        const SizedBox(height: 6),
-        const Text('Add farmers & plots, raise alerts, search and get your day — just speak.',
-            style: TextStyle(color: Colors.white70, fontSize: 11)),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: FilledButton.icon(
-              key: const Key('ask-anything'),
-              style: FilledButton.styleFrom(
-                backgroundColor: CropinColors.green,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-              onPressed: onAsk,
-              icon: const Icon(Icons.mic),
-              label: const Text('Ask anything'),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white70),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-              onPressed: onBriefing,
-              icon: const Icon(Icons.wb_sunny_outlined),
-              label: const Text("What's my day?"),
-            ),
-          ),
-        ]),
-      ]),
-    );
-  }
 }
 
 class _AdvisoryCard extends StatelessWidget {

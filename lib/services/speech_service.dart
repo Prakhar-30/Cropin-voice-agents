@@ -149,6 +149,8 @@ class SpeechService extends ChangeNotifier {
       {void Function(String text, bool isFinal)? onResult, bool autoStopOnSilence = true}) async {
     await _halt();
     _autoStop = autoStopOnSilence;
+    lastError = null;
+    if (state == SpeechState.error) state = SpeechState.idle;
     if (!await init()) return false;
     _dict.clear();
     _segPartial = '';
@@ -354,9 +356,8 @@ class SpeechService extends ChangeNotifier {
         final w = a.recognizedWords.trim();
         if (w.isNotEmpty && !alts.contains(w)) alts.add(w);
       }
-      // Only Done / silence end the recording; a trailing "done" is just dropped.
-      final (clean, _) = Dictation.stripDone(words);
-      _dict.add(clean, alts);
+      // Only Done / silence end the recording.
+      _dict.add(words, alts);
       _segPartial = '';
       // The session closes right after its final result; the "done" status
       // (or the watchdog) starts the next one.
@@ -400,7 +401,13 @@ class SpeechService extends ChangeNotifier {
       _scheduleRestart();
       return;
     }
-    if (_active && !_finishing && _errorRestarts < 200) {
+    const permanent = {
+      'error_language_unavailable', 'error_language_not_supported', 'error_permission',
+      'error_insufficient_permissions', 'error_network', 'error_network_timeout',
+      'error_server', 'error_server_disconnected',
+    };
+    final isPermanent = permanent.contains(e.errorMsg);
+    if (_active && !_finishing && (isPermanent ? _errorRestarts < 2 : _errorRestarts < 200)) {
       // Pauses and recogniser hiccups surface as errors; never stop because
       // of them — keep listening until Done or real silence.
       _errorRestarts++;
@@ -414,21 +421,21 @@ class SpeechService extends ChangeNotifier {
     if (_active) {
       _active = false;
       _ticker?.cancel();
-      lastError = describeError(e.errorMsg);
+      lastError = describeError(e.errorMsg, _lang);
       state = SpeechState.error;
       notifyListeners();
     }
   }
 
-  static String describeError(String code) => switch (code) {
+  static String describeError(String code, [AgentLanguage? lang]) => switch (code) {
         'error_language_unavailable' || 'error_language_not_supported' =>
-          'This language\'s speech pack isn\'t ready yet. It is downloading — tap the mic '
-              'to try again, or type instead.',
+          '${lang?.englishName ?? 'This language'} speech isn\'t ready on this phone yet — it is '
+              'downloading. Try again in a minute, or switch to English.',
         'error_network' || 'error_network_timeout' || 'error_server' || 'error_server_disconnected' =>
-          'The recogniser needs its language pack or a connection. Tap the mic to retry, or type instead.',
-        'error_no_match' || 'error_speech_timeout' => "Didn't catch that. Tap the mic and speak again.",
-        'error_permission' || 'error_insufficient_permissions' => 'Microphone permission is required.',
-        'error_busy' || 'error_recognizer_busy' => 'Recogniser is busy, tap the mic again.',
-        _ => 'Speech error: $code. Tap the mic to retry.',
+          '${lang?.englishName ?? 'This language'} speech pack is still downloading and the phone '
+              'is offline. Try again shortly, or switch to English.',
+        'error_permission' || 'error_insufficient_permissions' =>
+          'Microphone permission is needed — allow it in Settings.',
+        _ => "Couldn't hear that. Tap the mic to try again.",
       };
 }

@@ -73,6 +73,7 @@ class FarmersTab extends StatelessWidget {
       builder: (context, _) {
         final list = store.searchFarmers(NavController.instance.queries[SearchEntity.farmers], text.value);
         return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 96),
           itemCount: list.length + 4,
           itemBuilder: (context, i) {
             if (i == 0) {
@@ -105,6 +106,7 @@ class AssetsTab extends StatelessWidget {
       builder: (context, _) {
         final list = store.searchAssets(NavController.instance.queries[SearchEntity.assets], text.value);
         return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 96),
           itemCount: list.length + 4,
           itemBuilder: (context, i) {
             if (i == 0) {
@@ -148,6 +150,7 @@ class TasksTab extends StatelessWidget {
       builder: (context, _) {
         final list = store.searchTasks(NavController.instance.queries[SearchEntity.tasks], text.value);
         return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 96),
           itemCount: list.length + 4,
           itemBuilder: (context, i) {
             if (i == 0) {
@@ -189,7 +192,7 @@ class ReportsTab extends StatelessWidget {
         final voiceAssets = store.assets.where((a) => a.createdByVoice).length;
         final voiceAlerts = store.alerts.where((a) => a.byVoice).length;
         final notes = store.photos.where((p) => p.note.isNotEmpty).length;
-        return ListView(padding: const EdgeInsets.only(bottom: 24), children: [
+        return ListView(padding: const EdgeInsets.only(bottom: 96), children: [
           const _ListTitle('Voice agent activity'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
