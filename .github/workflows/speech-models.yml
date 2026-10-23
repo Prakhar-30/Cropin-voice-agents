@@ -1,0 +1,45 @@
+name: Speech models
+
+on:
+  push:
+    paths: ['.github/workflows/speech-models.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: sherpa_onnx Dart API
+        run: |
+          flutter pub cache add sherpa_onnx
+          d=$(ls -d ~/.pub-cache/hosted/pub.dev/sherpa_onnx-* | sort -V | tail -1)
+          echo "PKG $d"; cat $d/pubspec.yaml
+          for a in ~/.pub-cache/hosted/pub.dev/sherpa_onnx_android-*; do echo "ANDROID $a"; cat $a/android/build.gradle* 2>/dev/null | grep -iE "minSdk|compileSdk|abiFilters" ; ls $a/android/src/main/jniLibs 2>/dev/null; done
+          ls $d/lib $d/lib/src
+          cat $d/lib/sherpa_onnx.dart
+          for f in offline_recognizer vad offline_stream; do echo "=== $f"; grep -nE "class |^\s+(final|const|required|this\.)|  [A-Z][A-Za-z]+\(|  (void|String|bool|int|double|Float32List|OfflineRecognizerResult|OfflineStream) [a-z]+\(" $d/lib/src/$f.dart | head -150; done
+          echo "=== init"; grep -rn "initBindings" $d/lib | head
+      - name: Model candidates
+        run: |
+          tree() { echo "### $1"; curl -sfL "https://huggingface.co/api/models/$1/tree/main?recursive=true" | python3 -c "import json,sys;[print(x.get('size'),x['path']) for x in json.load(sys.stdin) if x['type']=='file']" || echo MISSING; }
+          for q in indicconformer sherpa-onnx-kannada sherpa-onnx-tamil sherpa-onnx-hindi indic-conformer kannada%20sherpa tamil%20sherpa; do echo "### search $q"; curl -sfL "https://huggingface.co/api/models?search=$q&limit=30" | python3 -c "import json,sys;[print(m['id'],m.get('downloads')) for m in json.load(sys.stdin)]"; done
+          for r in parismitaglobalsolutions/indicconformer-sherpa-onnx meetsync/indic-conformer-onnx-sherpa ngiftsun/indicconformer-hi-int8-sherpa csukuangfj/sherpa-onnx-dolphin-small-ctc-multi-lang-int8-2025-04-02 csukuangfj/sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02; do tree $r; done
+          for r in parismitaglobalsolutions/indicconformer-sherpa-onnx meetsync/indic-conformer-onnx-sherpa; do echo "### README $r"; curl -sfL "https://huggingface.co/$r/raw/main/README.md" | head -80; done
+      - name: k2-fsa release assets
+        run: |
+          for t in asr-models; do
+            for p in 1 2 3 4 5 6; do curl -sf -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/tags/$t" > /dev/null || true; done
+          done
+          curl -sf -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/tags/asr-models" | python3 -c "
+          import json,sys
+          r=json.load(sys.stdin)
+          print('assets',len(r['assets']))
+          for a in r['assets']:
+            n=a['name'].lower()
+            if any(k in n for k in ['silero','hi-','hindi','-ta','tamil','kn','kannada','indic','dolphin','nemo-ctc-en','zipformer-en','moonshine','small-en','en-2023','whisper-tiny']): print(a['size'],a['name'])"
