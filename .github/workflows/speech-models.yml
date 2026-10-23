@@ -1,5 +1,7 @@
 name: Speech models
 
+# Mirrors the offline speech models the app downloads into this repo's
+# "speech-models-v1" release, so the app only ever fetches from GitHub.
 on:
   push:
     paths: ['.github/workflows/speech-models.yml']
@@ -9,42 +11,60 @@ permissions:
   contents: write
 
 jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: speech-models-v1
+      HF: https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx/resolve/main
+      K2: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models
+    steps:
+      - name: Download
+        run: |
+          set -eux
+          mkdir out && cd out
+          for l in hi kn ta; do curl -fL --retry 4 -o $l.int8.onnx "$HF/$l/model.int8.onnx"; done
+          curl -fL --retry 4 -o indic-tokens.txt "$HF/tokens.txt"
+          curl -fL --retry 4 -o silero_vad.onnx "$K2/silero_vad.onnx"
+          curl -fL --retry 4 -o en.tar.bz2 "$K2/sherpa-onnx-nemo-ctc-en-conformer-small.tar.bz2"
+          tar xjf en.tar.bz2 && ls -la sherpa-onnx-nemo-ctc-en-conformer-small
+          cp sherpa-onnx-nemo-ctc-en-conformer-small/model.int8.onnx en.int8.onnx
+          cp sherpa-onnx-nemo-ctc-en-conformer-small/tokens.txt en-tokens.txt
+          rm -rf en.tar.bz2 sherpa-onnx-nemo-ctc-en-conformer-small
+          curl -sfL https://huggingface.co/api/models/parismitaglobalsolutions/indicconformer-sherpa-onnx | python3 -c "import json,sys;print('HF revision', json.load(sys.stdin)['sha'])"
+          for f in *; do echo "SIZE $(stat -c %s $f) $f"; done
+          head -5 indic-tokens.txt; tail -3 indic-tokens.txt; head -3 en-tokens.txt
+      - name: Publish release
+        run: |
+          set -eux
+          cd out
+          gh release view $TAG -R ${{ github.repository }} >/dev/null 2>&1 || \
+            gh release create $TAG -R ${{ github.repository }} --title "Offline speech models" \
+              --notes "Models downloaded by the app on first use of each language (sherpa-onnx). IndicConformer (AI4Bharat, MIT) via parismitaglobalsolutions/indicconformer-sherpa-onnx (Apache-2.0); English NeMo CTC conformer-small and Silero VAD from k2-fsa/sherpa-onnx." \
+              --latest=false
+          gh release upload $TAG -R ${{ github.repository }} --clobber *
+
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: sherpa_onnx Dart API
-        continue-on-error: true
+      - name: APIs
         shell: bash {0}
         run: |
           flutter pub cache add sherpa_onnx
+          flutter pub cache add record
+          flutter pub cache add path_provider
           d=$(ls -d ~/.pub-cache/hosted/pub.dev/sherpa_onnx-* | sort -V | tail -1)
-          echo "PKG $d"; cat $d/pubspec.yaml
-          for a in ~/.pub-cache/hosted/pub.dev/sherpa_onnx_android*; do echo "ANDROID $a"; find $a -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk|abiFilters' {} \; ; find $a -name '*.so' | xargs ls -la; done
-          ls $d/lib $d/lib/src
-          cat $d/lib/sherpa_onnx.dart
-          for f in offline_recognizer vad offline_stream; do echo "=== $f"; grep -nE "class |^\s+(final|const|required|this\.)|  [A-Z][A-Za-z]+\(|  (void|String|bool|int|double|Float32List|OfflineRecognizerResult|OfflineStream) [a-z]+\(" $d/lib/src/$f.dart | head -150; done
-          echo "=== init"; grep -rn "initBindings" $d/lib | head
-      - name: Model candidates
-        continue-on-error: true
+          ls -d ~/.pub-cache/hosted/pub.dev/*/
+          for f in offline_recognizer vad offline_stream; do echo "=== FILE $f"; sed -n 1,360p $d/lib/src/$f.dart | grep -v '^\s*//' | grep -v '^\s*$'; done
+          a=$(ls -d ~/.pub-cache/hosted/pub.dev/sherpa_onnx_android_arm64-* | tail -1); echo "ARM64 $a"; find $a -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk|ndk|abiFilters' {} \; ; find $a -name '*.so' -exec ls -la {} \;
+          r=$(ls -d ~/.pub-cache/hosted/pub.dev/record-* | sort -V | tail -1); echo "RECORD $r"; grep -nE "Future|Stream" $r/lib/src/record.dart | head -40
+          rp=$(ls -d ~/.pub-cache/hosted/pub.dev/record_platform_interface-* | sort -V | tail -1); grep -nE "^\s+(final|const) |  const RecordConfig|enum AudioEncoder" -A0 $rp/lib/src/types/record_config.dart | head -40; grep -n "pcm16bits" -r $rp/lib | head -3
+          ra=$(ls -d ~/.pub-cache/hosted/pub.dev/record_android-* | sort -V | tail -1); echo "RECORD_ANDROID $ra"; find $ra -name 'build.gradle*' -exec grep -iHE 'minSdk|compileSdk' {} \;
+      - name: IndicConformer README usage
         shell: bash {0}
         run: |
-          tree() { echo "### $1"; curl -sfL "https://huggingface.co/api/models/$1/tree/main?recursive=true" | python3 -c "import json,sys;[print(x.get('size'),x['path']) for x in json.load(sys.stdin) if x['type']=='file']" || echo MISSING; }
-          for q in indicconformer sherpa-onnx-kannada sherpa-onnx-tamil sherpa-onnx-hindi indic-conformer kannada%20sherpa tamil%20sherpa; do echo "### search $q"; curl -sfL "https://huggingface.co/api/models?search=$q&limit=30" | python3 -c "import json,sys;[print(m['id'],m.get('downloads')) for m in json.load(sys.stdin)]"; done
-          for r in parismitaglobalsolutions/indicconformer-sherpa-onnx meetsync/indic-conformer-onnx-sherpa ngiftsun/indicconformer-hi-int8-sherpa csukuangfj/sherpa-onnx-dolphin-small-ctc-multi-lang-int8-2025-04-02 csukuangfj/sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02; do tree $r; done
-          for r in parismitaglobalsolutions/indicconformer-sherpa-onnx meetsync/indic-conformer-onnx-sherpa; do echo "### README $r"; curl -sfL "https://huggingface.co/$r/raw/main/README.md" | head -80; done
-      - name: k2-fsa release assets
-        shell: bash {0}
-        run: |
-          for t in asr-models; do
-            for p in 1 2 3 4 5 6; do curl -sf -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/tags/$t" > /dev/null || true; done
-          done
-          curl -sf -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/tags/asr-models" | python3 -c "
-          import json,sys
-          r=json.load(sys.stdin)
-          print('assets',len(r['assets']))
-          for a in r['assets']:
-            n=a['name'].lower()
-            if any(k in n for k in ['silero','hi-','hindi','-ta','tamil','kn','kannada','indic','dolphin','nemo-ctc-en','zipformer-en','moonshine','small-en','en-2023','whisper-tiny']): print(a['size'],a['name'])"
+          curl -sfL "https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx/raw/main/README.md" | sed -n 80,400p
+          curl -sfL "https://huggingface.co/parismitaglobalsolutions/indicconformer-sherpa-onnx/raw/main/available_languages.json"
