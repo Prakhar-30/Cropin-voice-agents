@@ -1,4 +1,4 @@
-# Cropin Grow — Offline Voice Agents (Flutter)
+# Cropin Grow: Offline Voice Agents (Flutter)
 
 A Flutter Android app that adds four **offline, multilingual voice agents** to the Cropin Grow field app.
 It supports **English, Hindi, Kannada and Tamil**, with Kannada and Tamil as the demo languages.
