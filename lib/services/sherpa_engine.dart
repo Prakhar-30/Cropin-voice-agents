@@ -19,7 +19,6 @@ class SherpaEngine {
 
   SendPort? _worker;
   final ReceivePort _inbox = ReceivePort();
-  StreamSubscription? _inboxSub;
   Completer<SendPort>? _spawning;
   Completer<String?>? _loading;
   Completer<void>? _flushing;
@@ -34,7 +33,7 @@ class SherpaEngine {
     if (_worker != null) return _worker!;
     if (_spawning != null) return _spawning!.future;
     final c = _spawning = Completer<SendPort>();
-    _inboxSub = _inbox.listen(_onMessage);
+    _inbox.listen(_onMessage);
     await Isolate.spawn(_workerMain, _inbox.sendPort, debugName: 'sherpa-asr');
     return c.future;
   }
