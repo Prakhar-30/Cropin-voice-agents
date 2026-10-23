@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../services/location_service.dart';
+import '../services/speech_pack_service.dart';
 import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
@@ -22,6 +23,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   final store = AppStore.instance;
   final speech = SpeechService.instance;
   final tts = TtsService.instance;
+  final packs = SpeechPackService.instance;
   final ttsAvailable = <AgentLanguage, bool>{};
 
   @override
@@ -32,6 +34,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
 
   Future<void> _check() async {
     await speech.init();
+    await packs.status(store.language);
     for (final l in AgentLanguage.values) {
       ttsAvailable[l] = await tts.isAvailable(l);
     }
@@ -52,8 +55,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             onTap: () => setState(() => store.language = l),
             title: Text('${l.nativeName}  ·  ${l.englishName}'),
             subtitle: Text(
-              'Speech pack: ${!speech.isReady ? 'checking…' : speech.supports(l) ? 'recogniser supports ${speech.localeFor(l)}' : 'not listed — install offline pack'}'
-              '   ·   Voice: ${ttsAvailable[l] == null ? '…' : ttsAvailable[l]! ? 'available' : 'not installed'}',
+              'Voice reply: ${ttsAvailable[l] == null ? '…' : ttsAvailable[l]! ? 'available' : 'not installed'}',
               style: const TextStyle(fontSize: 10),
             ),
             trailing: IconButton(
@@ -61,6 +63,67 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
               onPressed: () => tts.speak(AgentStrings(l).greeting, l),
             ),
           ),
+        const Divider(),
+        const _Header('Offline speech packs (downloaded by the app)'),
+        ListenableBuilder(
+          listenable: packs,
+          builder: (context, _) => Column(children: [
+            for (final l in AgentLanguage.values)
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  switch (packs.state[l]) {
+                    PackState.installed => Icons.check_circle,
+                    PackState.downloading || PackState.scheduled => Icons.downloading,
+                    PackState.unsupported => Icons.block,
+                    _ => Icons.download_for_offline_outlined,
+                  },
+                  color: packs.state[l] == PackState.installed
+                      ? CropinColors.voiceFilled
+                      : CropinColors.primary,
+                ),
+                title: Text(l.nativeName),
+                subtitle: Text(packs.label(l), style: const TextStyle(fontSize: 11)),
+                trailing: packs.state[l] == PackState.installed ||
+                        packs.state[l] == PackState.unsupported
+                    ? null
+                    : TextButton(
+                        onPressed: packs.state[l] == PackState.downloading
+                            ? null
+                            : () => packs.download(l),
+                        child: const Text('Download'),
+                      ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    packs.last == null
+                        ? 'Checking on-device recogniser…'
+                        : !packs.last!.onDeviceAvailable
+                            ? 'This phone has no on-device recogniser; the standard one is used.'
+                            : packs.last!.sdk < 33
+                                ? 'Android ${packs.last!.sdk} can\'t report pack status; '
+                                    'download is triggered when you first speak.'
+                                : 'Missing packs download automatically the first time you speak.',
+                    style: const TextStyle(fontSize: 11, color: CropinColors.subText),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    for (final l in AgentLanguage.values) {
+                      await packs.download(l);
+                    }
+                    await packs.status(store.language);
+                  },
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const Text('All'),
+                ),
+              ]),
+            ),
+          ]),
+        ),
         const Divider(),
         const _Header('Privacy & connectivity'),
         SwitchListTile(
@@ -95,15 +158,15 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             onTap: () => setState(() => LocationService.instance.mode = m.$1),
           ),
         const Divider(),
-        const _Header('Install offline speech packs'),
+        const _Header('If a pack can\'t be downloaded'),
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Text(
-            '1. Open the Google app → Settings → Voice → Offline speech recognition.\n'
-            '2. Under "All", download Kannada (ಕನ್ನಡ), Tamil (தமிழ்), Hindi and English (India).\n'
-            '3. For spoken replies: Settings → System → Languages → Text-to-speech → '
-            'Speech Services by Google → Install voice data for the same languages.\n\n'
-            'Without a pack you can still use every agent by typing, or by tapping an example.',
+            'The app falls back to the standard recogniser automatically, so speaking still '
+            'works (it may use the network until the pack is ready).\n'
+            'Spoken replies use the phone\'s TTS voices: Settings → Text-to-speech → '
+            'Speech Services by Google → Install voice data.\n'
+            'You can always type, or tap an example sentence.',
             style: TextStyle(fontSize: 12, height: 1.4),
           ),
         ),

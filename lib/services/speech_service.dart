@@ -6,6 +6,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../voice/agent_language.dart';
+import 'speech_pack_service.dart';
 
 enum SpeechState { idle, initializing, listening, error }
 
@@ -32,6 +33,15 @@ class SpeechService extends ChangeNotifier {
   String? lastError;
   double soundLevel = 0;
   List<LocaleName> installedLocales = [];
+
+  /// 'offline'  – Android's on-device model is used
+  /// 'fallback' – offline wanted, but this language's on-device pack is still
+  ///              downloading, so the standard recogniser is used meanwhile
+  /// 'online'   – the user switched "Offline only" off
+  String mode = 'offline';
+  AgentLanguage? _lang;
+  bool _usedOnDevice = false;
+  bool _retried = false;
 
   void Function(String text, bool isFinal)? _onResult;
   Completer<String>? _finalCompleter;
@@ -74,9 +84,26 @@ class SpeechService extends ChangeNotifier {
   bool supports(AgentLanguage lang) => installedLocales
       .any((l) => l.localeId.toLowerCase().startsWith(lang.code));
 
-  Future<bool> start(AgentLanguage lang, {void Function(String text, bool isFinal)? onResult}) async {
+  Future<bool> start(AgentLanguage lang,
+      {void Function(String text, bool isFinal)? onResult, bool forceFallback = false}) async {
     if (!await init()) return false;
     if (_stt.isListening) await _stt.cancel();
+    if (!forceFallback) _retried = false;
+    var onDevice = offlineOnly && !forceFallback;
+    if (onDevice) {
+      // Make sure the on-device model exists; if not, fetch it in the
+      // background and use the standard recogniser until it's ready.
+      final packs = SpeechPackService.instance;
+      final st = await packs.status(lang);
+      if (st != null && st.onDeviceAvailable && st.checked && !st.isInstalled(lang)) {
+        onDevice = false;
+        if (st.isSupported(lang)) unawaited(packs.download(lang));
+      }
+    }
+    if (forceFallback) unawaited(SpeechPackService.instance.download(lang));
+    mode = onDevice ? 'offline' : (offlineOnly ? 'fallback' : 'online');
+    _lang = lang;
+    _usedOnDevice = onDevice;
     partial = '';
     alternates = [];
     lastError = null;
@@ -92,11 +119,11 @@ class SpeechService extends ChangeNotifier {
           notifyListeners();
         },
         listenOptions: SpeechListenOptions(
-          localeId: localeFor(lang),
+          localeId: lang.ttsLocale,
           listenFor: const Duration(seconds: 45),
           pauseFor: const Duration(seconds: 4),
           partialResults: true,
-          onDevice: offlineOnly,
+          onDevice: onDevice,
           listenMode: ListenMode.dictation,
           cancelOnError: true,
         ),
@@ -166,11 +193,23 @@ class SpeechService extends ChangeNotifier {
   }
 
   void _handleError(SpeechRecognitionError e) {
+    final missingPack = e.errorMsg == 'error_language_unavailable' ||
+        e.errorMsg == 'error_language_not_supported';
+    if (missingPack && _usedOnDevice && !_retried && _lang != null) {
+      // On-device model missing: download it and carry on with the
+      // standard recogniser so the user isn't blocked.
+      _retried = true;
+      final lang = _lang!;
+      final cb = _onResult;
+      Future.microtask(() => start(lang, onResult: cb, forceFallback: true));
+      return;
+    }
     lastError = describeError(e.errorMsg);
     state = SpeechState.error;
     _complete(partial);
     notifyListeners();
   }
+
 
   void _complete(String text) {
     final c = _finalCompleter;
@@ -179,8 +218,8 @@ class SpeechService extends ChangeNotifier {
 
   static String describeError(String code) => switch (code) {
         'error_language_unavailable' || 'error_language_not_supported' =>
-          'Offline speech pack for this language is not installed. Install it from '
-              'Google app → Settings → Voice → Offline speech recognition, or type instead.',
+          'This language\'s on-device speech pack isn\'t ready yet. The app is downloading '
+              'it — tap the mic again to use standard recognition meanwhile, or type instead.',
         'error_network' || 'error_network_timeout' || 'error_server' || 'error_server_disconnected' =>
           'Recogniser needs its offline language pack (device is offline). Download the pack '
               'in Google app → Settings → Voice → Offline speech recognition, or type instead.',

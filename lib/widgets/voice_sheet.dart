@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
+import '../services/speech_pack_service.dart';
 import '../services/speech_service.dart';
 import '../theme/app_theme.dart';
 import '../voice/agent_language.dart';
@@ -279,23 +280,37 @@ class _OfflineBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final offline = SpeechService.instance.offlineOnly;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: (offline ? CropinColors.voiceFilled : CropinColors.voiceCheck).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(offline ? Icons.cloud_off : Icons.cloud_queue,
-            size: 11, color: offline ? CropinColors.voiceFilled : CropinColors.voiceCheck),
-        const SizedBox(width: 4),
-        Text(offline ? 'Offline · on-device' : 'Prefer offline',
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: offline ? CropinColors.voiceFilled : CropinColors.voiceCheck)),
-      ]),
+    final packs = SpeechPackService.instance;
+    return ListenableBuilder(
+      listenable: packs,
+      builder: (context, _) {
+        final speech = SpeechService.instance;
+        final lang = AppStore.instance.language;
+        final (label, icon, color) = switch (speech.mode) {
+          'fallback' => (
+              packs.state[lang] == PackState.downloading
+                  ? 'Pack ${packs.progress[lang] ?? 0}% · standard mode'
+                  : 'Standard mode',
+              Icons.downloading,
+              CropinColors.voiceCheck,
+            ),
+          'online' => ('Online allowed', Icons.cloud_queue, CropinColors.voiceCheck),
+          _ => ('Offline · on-device', Icons.cloud_off, CropinColors.voiceFilled),
+        };
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          ]),
+        );
+      },
     );
   }
 }
