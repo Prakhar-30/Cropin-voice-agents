@@ -158,6 +158,8 @@ class PhraseMatcher {
     final s = TextUtils.similarity(wKey, p.key);
     // Short words need a near-exact sound match ("gowda" must not become "ಗೋಡು").
     final minLen = wKey.length < p.key.length ? wKey.length : p.key.length;
+    // Words of 4 sounds or fewer must match exactly ("give" is not "kovai").
+    if (minLen <= 4 && s < 1) return 0;
     if (s >= (minLen <= 5 ? 0.9 : 0.8) && !(minLen <= 5 && s < 1 && windowIndic != p.isIndic)) {
       return s;
     }

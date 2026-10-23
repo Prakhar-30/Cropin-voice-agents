@@ -258,6 +258,13 @@ class Lexicon {
     'use', 'uses', 'through', 'via', 'there', 'that', 'this', 'which', 'who', 'whose',
     'mr', 'mrs', 'ms', 'shri', 'sri', 'smt', 'sir', 'madam', 'yes', 'yeah', 'do', 'does',
     'source', 'grows', 'growing', 'cultivates', 'cultivating', 'own', 'owns', 'acreage',
+    'as', 'can', 'could', 'your', 'kindly', 'wanted', 'let', 'lets', "let's", 'us', 'make',
+    'entry', 'record', 'person', 'guy', 'man', 'then', 'now', 'give', 'get', 'tell', 'see',
+    'list', 'all', 'every', 'owned', 'belonging', 'belongs', 'from', 'whose', 'named',
+    'plots', 'farmers', 'any', 'some', 'mine', 'our', 'these', 'those', 'what', 'where',
+    'how', 'many', 'much', 'also', 'into', 'onto', 'inside',
+    'आप', 'कृपया', 'करें', 'कीजिए', 'नए', 'व्यक्ति', 'सारे', 'सभी', 'मेरे', 'मेरी', 'बताओ',
+    'ನೀವು', 'ಒಬ್ಬ', 'ನನ್ನ', 'ಎಲ್ಲಾ', 'ಎಲ್ಲ', 'நீங்கள்', 'ஒரு', 'என்', 'எனது', 'எல்லா',
     // Hindi
     'होगा', 'होगी', 'रहेगा', 'रहेगी', 'था', 'थी', 'उनका', 'उनकी', 'उनके', 'उसका', 'उसकी',
     'उसके', 'इनका', 'इनकी', 'वो', 'वह', 'यह', 'जो', 'भी', 'लगभग', 'करीब', 'जमीन', 'ज़मीन',

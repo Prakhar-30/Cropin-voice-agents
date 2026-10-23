@@ -46,8 +46,26 @@ class DemoData {
     'Patna': ('Kavi Raman Path, Kidwaipuri, Patna, Bihar', GeoPoint(25.5941, 85.1376)),
   };
 
-  /// Spoken aliases for localities (voice search).
+  /// Cities / districts / states that contain several localities.
+  static const localityGroups = <String, List<String>>{
+    'Bengaluru': ['BTM Layout', 'Bommanahalli', 'Madivala', 'HSR Layout', 'Jayanagar', 'Anekal'],
+    'Karnataka': [
+      'BTM Layout', 'Bommanahalli', 'Madivala', 'HSR Layout', 'Jayanagar', 'Anekal', 'Mandya',
+      'Mysuru', 'Kolar',
+    ],
+    'Tamil Nadu': ['Hosur', 'Krishnagiri', 'Coimbatore'],
+    'Bihar': ['Patna'],
+  };
+
+  /// Spoken aliases for localities and regions (voice search).
   static const localityAliases = <String, List<String>>{
+    'Bengaluru': [
+      'bengaluru', 'bangalore', 'bengalore', 'banglore', 'bangaluru', 'ಬೆಂಗಳೂರು', 'ಬೆಂಗಳೂರಿನ',
+      'பெங்களூரு', 'பெங்களூர்', 'बेंगलुरु', 'बैंगलोर', 'बेंगलुरू',
+    ],
+    'Karnataka': ['karnataka', 'ಕರ್ನಾಟಕ', 'கர்நாடகா', 'कर्नाटक'],
+    'Tamil Nadu': ['tamil nadu', 'tamilnadu', 'ತಮಿಳುನಾಡು', 'தமிழ்நாடு', 'तमिलनाडु'],
+    'Bihar': ['bihar', 'ಬಿಹಾರ', 'பீகார்', 'बिहार'],
     'BTM Layout': ['btm layout', 'btm', 'ಬಿಟಿಎಂ', 'ಬಿಟಿಎಂ ಲೇಔಟ್', 'பிடிஎம்', 'बीटीएम'],
     'Bommanahalli': ['bommanahalli', 'ಬೊಮ್ಮನಹಳ್ಳಿ', 'பொம்மனஹள்ளி', 'बोम्मनहल्ली'],
     'Madivala': ['madivala', 'ಮಡಿವಾಳ', 'மடிவாளா', 'मडिवाला'],

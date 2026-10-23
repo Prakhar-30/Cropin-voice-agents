@@ -146,13 +146,21 @@ class AppStore extends ChangeNotifier {
   void touch() => notifyListeners();
 
   // ------------------------------------------------------------- search
+  /// True when [locality] is [place] or lies inside it (city / state).
+  static bool inPlace(String locality, String place) =>
+      locality == place || (DemoData.localityGroups[place]?.contains(locality) ?? false);
+
+  /// Plot codes compare without separators: "ca 1" matches "mh01/CA-1".
+  static String _compact(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
   List<Asset> searchAssets(SearchQuery? q, String text) {
     var list = assets.where((a) => _textMatch(text, [
           a.name, a.crop, a.variety, a.locality, a.address, farmer(a.farmerId)?.name ?? '',
         ]));
     if (q != null) {
       if (q.crop != null) list = list.where((a) => a.crop == q.crop);
-      if (q.location != null) list = list.where((a) => a.locality == q.location);
+      if (q.location != null) list = list.where((a) => inPlace(a.locality, q.location!));
+      if (q.code != null) list = list.where((a) => _compact(a.name).contains(q.code!));
       if (q.health != null) list = list.where((a) => a.health == q.health);
       if (q.farmerId != null) list = list.where((a) => a.farmerId == q.farmerId);
       if (q.area != null) {
@@ -170,7 +178,7 @@ class AppStore extends ChangeNotifier {
   List<Farmer> searchFarmers(SearchQuery? q, String text) {
     var list = farmers.where((f) => _textMatch(text, [f.name, f.code, f.address, f.phone]));
     if (q != null) {
-      if (q.location != null) list = list.where((f) => f.locality == q.location);
+      if (q.location != null) list = list.where((f) => inPlace(f.locality, q.location!));
       if (q.farmerId != null) list = list.where((f) => f.id == q.farmerId);
       if (q.crop != null) {
         list = list.where((f) => assetsOf(f.id).any((a) => a.crop == q.crop));
@@ -194,7 +202,9 @@ class AppStore extends ChangeNotifier {
       if (q.taskStatus == 'completed') list = list.where((t) => t.status == 'completed');
       if (q.farmerId != null) list = list.where((t) => t.farmerId == q.farmerId);
       if (q.crop != null) list = list.where((t) => asset(t.assetId)?.crop == q.crop);
-      if (q.location != null) list = list.where((t) => asset(t.assetId)?.locality == q.location);
+      if (q.location != null) {
+        list = list.where((t) => inPlace(asset(t.assetId)?.locality ?? '', q.location!));
+      }
     }
     final out = list.toList()..sort((a, b) => a.due.compareTo(b.due));
     return out;

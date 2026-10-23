@@ -468,4 +468,65 @@ void main() {
       expect(d.hypotheses(), containsAll(['name Ramesh Kumar red oil', 'name Ramesh Kumar red soil']));
     });
   });
+
+  group('search refinements', () {
+    final parser = SearchParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+
+    test('city covers its localities; "give" is not Kovai', () {
+      final q = parser.parse('give me a list of all the plots in Bengaluru');
+      expect(q.location, 'Bengaluru');
+      final list = store.searchAssets(q, '');
+      expect(list, isNotEmpty);
+      expect(list.every((a) => DemoData.localityGroups['Bengaluru']!.contains(a.locality)), isTrue);
+      expect(parser.parse('ಬೆಂಗಳೂರಿನ ಎಲ್ಲಾ ಜಮೀನು ತೋರಿಸಿ').location, 'Bengaluru');
+      expect(parser.parse('தமிழ்நாடு நிலங்களை காட்டு').location, 'Tamil Nadu');
+    });
+
+    test('plot code CA-1 returns every CA-1 plot', () {
+      for (final said in ['search for all the CA-1 plots', 'show CA 1 plots', 'find ca1 plots']) {
+        final q = parser.parse(said);
+        expect(q.code, 'ca1', reason: said);
+        expect(store.searchAssets(q, '').length, store.assets.length, reason: said);
+      }
+    });
+
+    test('all maize / potato plots', () {
+      final m = parser.parse('show me all my maize plots');
+      expect(m.crop, 'Maize');
+      expect(m.entity, SearchEntity.assets);
+      expect(store.searchAssets(m, '').every((a) => a.crop == 'Maize'), isTrue);
+      expect(parser.parse('show me all the potato plots').crop, 'Potato');
+      expect(parser.parse('मक्का के सभी खेत दिखाओ').crop, 'Maize');
+      expect(parser.parse('ಎಲ್ಲಾ ಆಲೂಗಡ್ಡೆ ಜಮೀನು ತೋರಿಸಿ').crop, 'Potato');
+      expect(parser.parse('எல்லா மக்காச்சோளம் நிலங்களை காட்டு').crop, 'Maize');
+    });
+
+    test('plots owned by a farmer', () {
+      final q = parser.parse('search for plots owned by Mahesh Hegde');
+      expect(q.farmerId, 'f1');
+      expect(q.unmapped, isEmpty);
+    });
+  });
+
+  group('add farmer from free sentences', () {
+    final sentences = [
+      'Please register Ramesh Kumar as a new farmer, his phone is 98450 12345 and he grows paddy',
+      'Can you add Ramesh Kumar, mobile 9845012345, to the paddy project',
+      'I want to add a farmer named Ramesh Kumar whose number is 98450 12345 under paddy',
+      'add Ramesh Kumar to the paddy project his number is 98450 12345',
+    ];
+    for (final said in sentences) {
+      test(said, () {
+        expect(IntentRouter.detect(said), AgentIntent.addFarmer);
+        final r = formParser().parse(said);
+        expect(r.name!.value, 'Ramesh Kumar');
+        expect(r.phone!.value, '9845012345');
+        expect(r.projectId!.value, 'p5');
+      });
+    }
+
+    test('add without a number still goes to Add Farmer', () {
+      expect(IntentRouter.detect('add Ramesh Kumar to the paddy project'), AgentIntent.addFarmer);
+    });
+  });
 }

@@ -50,6 +50,9 @@ class IntentRouter {
     final severity = _score(u, Lexicon.severity.values.expand((e) => e).toList()) >= 0.9;
     if (alertWord || (alertType && severity)) return AgentIntent.raiseAlert;
 
+    // "add Ramesh Kumar to the paddy project": adding without a plot word is a farmer.
+    if (add && !plotWord && !searchVerb) return AgentIntent.addFarmer;
+
     if (s('take_photo') >= 0.9) return AgentIntent.takePhoto;
     if (s('search') >= 0.9) return AgentIntent.search;
     if (s('briefing') >= 0.9) return AgentIntent.briefing;
