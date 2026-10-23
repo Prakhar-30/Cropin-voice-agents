@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../services/location_service.dart';
 import '../voice/agent_language.dart';
+import '../voice/nlu/intent_router.dart';
 import '../voice/nlu/search_parser.dart';
 import '../voice/nlu/slots.dart';
 import 'demo_data.dart';
@@ -14,7 +15,10 @@ class AppStore extends ChangeNotifier {
     assets = DemoData.assets();
     tasks = DemoData.tasks(assets);
     alerts = DemoData.alerts();
+    _syncNames();
   }
+
+  void _syncNames() => IntentRouter.knownFarmerNames = [for (final f in farmers) f.name];
   static final AppStore instance = AppStore._();
 
   late List<Farmer> farmers;
@@ -72,6 +76,7 @@ class AppStore extends ChangeNotifier {
       createdByVoice: byVoice,
     );
     farmers.insert(0, f);
+    _syncNames();
     notifyListeners();
     return f;
   }
@@ -138,6 +143,22 @@ class AppStore extends ChangeNotifier {
     return al;
   }
 
+  /// Moves plots to another farmer (voice: "assign plot … to …").
+  void assignAssets(List<String> assetIds, String farmerId) {
+    final f = farmer(farmerId);
+    if (f == null) return;
+    for (final id in assetIds) {
+      final a = asset(id);
+      if (a == null) continue;
+      a.farmerId = farmerId;
+      if (!f.projectIds.contains(a.projectId)) f.projectIds.add(a.projectId);
+    }
+    for (final t in tasks) {
+      if (assetIds.contains(t.assetId)) t.farmerId = farmerId;
+    }
+    notifyListeners();
+  }
+
   void addPhotos(List<PhotoRecord> list) {
     photos.insertAll(0, list);
     notifyListeners();
@@ -200,6 +221,10 @@ class AppStore extends ChangeNotifier {
       if (q.taskStatus == 'today') list = list.where((t) => t.isDueToday(now) || t.isOverdue(now));
       if (q.taskStatus == 'pending') list = list.where((t) => t.status == 'pending');
       if (q.taskStatus == 'completed') list = list.where((t) => t.status == 'completed');
+      if (q.taskStatus == 'upcoming') {
+        final today = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+        list = list.where((t) => t.status == 'pending' && !t.due.isBefore(today));
+      }
       if (q.farmerId != null) list = list.where((t) => t.farmerId == q.farmerId);
       if (q.crop != null) list = list.where((t) => asset(t.assetId)?.crop == q.crop);
       if (q.location != null) {

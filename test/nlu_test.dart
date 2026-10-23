@@ -3,6 +3,7 @@ import 'package:cropin_voice_agents/data/demo_data.dart';
 import 'package:cropin_voice_agents/voice/agent_language.dart';
 import 'package:cropin_voice_agents/voice/agent_strings.dart';
 import 'package:cropin_voice_agents/voice/nlu/alert_parser.dart';
+import 'package:cropin_voice_agents/voice/nlu/assign_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/dictation.dart';
 import 'package:cropin_voice_agents/voice/nlu/form_parser.dart';
 import 'package:cropin_voice_agents/voice/nlu/intent_router.dart';
@@ -550,6 +551,80 @@ void main() {
     test('follow-up sentence gives the type', () {
       expect(parser.parse('पेस्ट टाइप रेज करनी है').type!.value, 'Pest');
       expect(parser.parse('pest type raise karni hai').type!.value, 'Pest');
+    });
+  });
+
+  group('home assistant behaviours', () {
+    final search = SearchParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+    final assign = AssignParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
+
+    test('task questions', () {
+      for (final (said, status) in [
+        ('which tasks are done', 'completed'),
+        ('show upcoming tasks', 'upcoming'),
+        ('show overdue visits', 'overdue'),
+        ('पूरे हो गए काम दिखाओ', 'completed'),
+        ('ಮುಗಿದಿರುವ ಕೆಲಸಗಳನ್ನು ತೋರಿಸಿ', 'completed'),
+        ('வரவிருக்கும் பணிகள் காட்டு', 'upcoming'),
+      ]) {
+        expect(IntentRouter.detect(said), AgentIntent.search, reason: said);
+        final q = search.parse(said);
+        expect(q.entity, SearchEntity.tasks, reason: said);
+        expect(q.taskStatus, status, reason: said);
+      }
+      // the daily briefing still works
+      expect(IntentRouter.detect("What's pending today?"), AgentIntent.briefing);
+    });
+
+    test('open a farmer (English words inside other languages too)', () {
+      for (final said in [
+        'open farmer Sunita Devi',
+        'सुनीता देवी फार्मर ओपन करो',
+        'ಸುನೀತಾ ದೇವಿ ಫಾರ್ಮರ್ ಓಪನ್ ಮಾಡಿ',
+        'சுனிதா தேவி ஃபார்மர் ஓபன் செய்',
+      ]) {
+        expect(IntentRouter.detect(said), AgentIntent.search, reason: said);
+        expect(search.parse(said).farmerId, 'f4', reason: said);
+      }
+    });
+
+    test('code-mixed search', () {
+      expect(search.parse('एल्ला पोटैटो प्लॉट्स दिखाओ').crop, 'Potato');
+      expect(search.parse('ಎಲ್ಲಾ ಪೊಟಾಟೊ ಪ್ಲಾಟ್ ತೋರಿಸಿ').crop, 'Potato');
+      expect(search.parse('எல்லா பொட்டேட்டோ பிளாட் காட்டு').crop, 'Potato');
+    });
+
+    test('assign a plot to a farmer', () {
+      final cases = [
+        ('assign plot CA 1 of Mahesh Hegde to Sunita Devi', 'f4', 'f1'),
+        ('सुनीता देवी को आलू का प्लॉट असाइन करो', 'f4', null),
+        ('ಆಲೂಗಡ್ಡೆ ಜಮೀನನ್ನು ಸುನೀತಾ ದೇವಿಗೆ ನಿಯೋಜಿಸಿ', 'f4', null),
+      ];
+      for (final (said, to, from) in cases) {
+        expect(IntentRouter.detect(said), AgentIntent.assignPlot, reason: said);
+        final r = assign.parse(said);
+        expect(r.toFarmerId, to, reason: said);
+        expect(r.fromFarmerId, from, reason: said);
+      }
+      expect(assign.parse('assign plot CA 1 of Mahesh Hegde to Sunita Devi').code, 'ca1');
+      expect(assign.parse('सुनीता देवी को आलू का प्लॉट असाइन करो').crop, 'Potato');
+    });
+
+    test('code-mixed add farmer', () {
+      const said = 'ऐड फार्मर रमेश कुमार मोबाइल 9845012345 धान प्रोजेक्ट';
+      expect(IntentRouter.detect(said), AgentIntent.addFarmer);
+      final r = formParser().parse(said);
+      expect(r.name!.value, 'Ramesh Kumar');
+      expect(r.phone!.value, '9845012345');
+      expect(r.projectId!.value, 'p5');
+    });
+
+    test('alert on a specific plot by code', () {
+      final r = AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases)
+          .parse('raise disease alert on plot mh01 CA 1, high severity');
+      expect(r.code, isNotNull);
+      expect(r.type!.value, 'Disease');
+      expect(r.severity!.value, 'High');
     });
   });
 }

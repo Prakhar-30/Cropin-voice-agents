@@ -14,7 +14,7 @@ void main() {
 
     expect(find.text('Add Farmer'), findsWidgets);
     expect(find.text('Raise alert'), findsOneWidget);
-    expect(find.text('Voice Agents'), findsOneWidget);
+    expect(find.text('Talk to Cropin'), findsOneWidget);
     expect(find.text('Farm Intelligence & Advisory'), findsOneWidget);
 
     await tester.tap(find.text('Assets').last);

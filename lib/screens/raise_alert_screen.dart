@@ -18,8 +18,11 @@ import '../widgets/voice_sheet.dart';
 /// Raise alert by voice: GPS pre-selects the nearest matching plot, alert
 /// type and severity are filled from speech, the user just hits submit.
 class RaiseAlertScreen extends StatefulWidget {
-  const RaiseAlertScreen({super.key, this.initialUtterance});
+  const RaiseAlertScreen({super.key, this.initialUtterance, this.preselected = const []});
   final String? initialUtterance;
+
+  /// Plots ticked when the screen opens (e.g. from a plot's detail page).
+  final List<String> preselected;
 
   @override
   State<RaiseAlertScreen> createState() => _RaiseAlertScreenState();
@@ -40,6 +43,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
   @override
   void initState() {
     super.initState();
+    selected.addAll(widget.preselected);
     _locate().then((_) {
       final u = widget.initialUtterance;
       if (u != null && mounted) _apply(u);
@@ -76,6 +80,7 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
   String? _ctxCrop;
   String? _ctxFarmer;
   String? _ctxLocation;
+  String? _ctxCode;
   bool _ctxAll = false;
   bool _ctxNear = false;
 
@@ -83,7 +88,8 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
     final parser = AlertParser(farmers: store.farmerRefs, locations: DemoData.localityAliases);
     final (_, r) = NBest.pick(
         SpeechService.instance.hypothesesFor(text), parser.parse, NBest.alertScore);
-    final plotCue = r.crop != null ||
+    final plotCue = r.code != null ||
+        r.crop != null ||
         r.farmerId != null ||
         r.location != null ||
         r.nearMe ||
@@ -91,10 +97,17 @@ class _RaiseAlertScreenState extends State<RaiseAlertScreen> {
     _ctxCrop = r.crop?.value ?? _ctxCrop;
     _ctxFarmer = r.farmerId?.value ?? _ctxFarmer;
     _ctxLocation = r.location ?? _ctxLocation;
+    _ctxCode = r.code ?? _ctxCode;
     _ctxAll = _ctxAll || r.selectAll;
     _ctxNear = _ctxNear || r.nearMe;
     // candidate plots: crop / farmer / locality filters, nearest first
     var candidates = store.assets.where((a) => a.status == 'current').toList();
+    if (_ctxCode != null) {
+      candidates = candidates
+          .where((a) =>
+              a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').contains(_ctxCode!))
+          .toList();
+    }
     if (_ctxCrop != null) candidates = candidates.where((a) => a.crop == _ctxCrop).toList();
     if (_ctxFarmer != null) {
       candidates = candidates.where((a) => a.farmerId == _ctxFarmer).toList();

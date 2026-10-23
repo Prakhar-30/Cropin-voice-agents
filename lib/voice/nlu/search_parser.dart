@@ -65,32 +65,35 @@ class SearchParser {
   /// canonical locality -> spoken aliases
   final Map<String, List<String>> locations;
 
-  SearchQuery parse(String text, {SearchEntity? defaultEntity}) {
-    final u = Utterance(text);
-    final q = SearchQuery()..heard = text.trim();
-
-    // Plot codes: "CA-1" / "CA 1" / "ca1" -> "ca1"
+  /// Plot code such as "CA-1" / "CA 1" / "ca1" -> "ca1" (tokens consumed).
+  static String? extractCode(Utterance u) {
     for (var i = 0; i < u.length; i++) {
       final t = u.tokens[i];
-      final m = RegExp(r'^([a-z]{1,4})(\d{1,3})$').firstMatch(t.raw);
-      if (m != null && !Utterance.isFiller(t.raw)) {
-        q.code = t.raw;
+      if (t.used) continue;
+      if (RegExp(r'^([a-z]{1,4})(\d{1,3})$').hasMatch(t.raw) && !Utterance.isFiller(t.raw)) {
         t.used = true;
-        break;
+        return t.raw;
       }
       if (RegExp(r'^[a-z]{2,4}$').hasMatch(t.raw) && !Utterance.isFiller(t.raw) &&
           i + 1 < u.length && RegExp(r'^\d{1,3}$').hasMatch(u.tokens[i + 1].raw) &&
           !(i + 2 < u.length && Lexicon.areaUnit.values.any((v) => v.contains(u.tokens[i + 2].raw)))) {
-        final words = {'ca', 'pa', 'cp', 'plot', 'plt', 'ast', 'asset', 'mh', 'ms', 'sk', 'sd'};
+        const words = {'ca', 'pa', 'cp', 'plot', 'plt', 'ast', 'asset'};
         const notCodes = {'me', 'top', 'first', 'last', 'only', 'about', 'than', 'over', 'get'};
         if (!notCodes.contains(t.raw) && (words.contains(t.raw) || t.raw.length <= 3)) {
-          q.code = '${t.raw}${u.tokens[i + 1].raw}';
           t.used = true;
           u.tokens[i + 1].used = true;
-          break;
+          return '${t.raw}${u.tokens[i + 1].raw}';
         }
       }
     }
+    return null;
+  }
+
+  SearchQuery parse(String text, {SearchEntity? defaultEntity}) {
+    final u = Utterance(text);
+    final q = SearchQuery()..heard = text.trim();
+
+    q.code = extractCode(u);
     if (q.code != null) q.entity ??= SearchEntity.assets;
 
     final cmp = PhraseMatcher.best(u, Lexicon.comparator, minScore: 0.9);

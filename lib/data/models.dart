@@ -101,7 +101,7 @@ class FieldTask {
   final String id;
   final String type;
   final String assetId;
-  final String farmerId;
+  String farmerId;
   final DateTime due;
 
   /// 'pending' | 'completed'

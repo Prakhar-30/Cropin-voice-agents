@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/app_store.dart';
 import '../data/models.dart';
 import '../theme/app_theme.dart';
+import '../screens/detail_screens.dart';
 import 'common.dart';
 
 BoxDecoration _card() => BoxDecoration(
@@ -19,7 +20,10 @@ class FarmerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = AppStore.instance;
     final assets = store.assetsOf(farmer.id).length;
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => FarmerDetailScreen(farmerId: farmer.id))),
+      child: Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       decoration: _card(),
@@ -56,6 +60,7 @@ class FarmerCard extends StatelessWidget {
           ]),
         ),
       ]),
+    ),
     );
   }
 }
@@ -67,7 +72,10 @@ class AssetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = AppStore.instance.farmer(asset.farmerId);
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => AssetDetailScreen(assetId: asset.id))),
+      child: Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: _card(),
@@ -115,6 +123,7 @@ class AssetCard extends StatelessWidget {
           ]),
         ),
       ]),
+    ),
     );
   }
 }

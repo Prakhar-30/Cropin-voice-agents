@@ -1,5 +1,6 @@
 import 'form_parser.dart';
 import 'lexicon.dart';
+import 'search_parser.dart';
 import 'slots.dart';
 import 'utterance.dart';
 
@@ -13,6 +14,9 @@ class AlertParseResult {
   /// "all chilli plots" -> select every matching plot, not just the nearest.
   bool selectAll = false;
   String? location;
+
+  /// Plot code ("CA-1", "mh01 ca1") naming specific plots.
+  String? code;
   String note = '';
   List<String> unmapped = [];
 
@@ -22,7 +26,8 @@ class AlertParseResult {
       (crop?.confidence ?? 0) +
       (farmerId?.confidence ?? 0) +
       (nearMe ? 0.5 : 0) +
-      (location != null ? 0.8 : 0) -
+      (location != null ? 0.8 : 0) +
+      (code != null ? 0.8 : 0) -
       0.4 * unmapped.length;
 
   @override
@@ -43,6 +48,7 @@ class AlertParser {
   AlertParseResult parse(String text) {
     final u = Utterance(text);
     final r = AlertParseResult()..note = text.trim();
+    r.code = SearchParser.extractCode(u);
 
     final sev = PhraseMatcher.latest(u, Lexicon.severity, minScore: 0.85);
     if (sev != null) r.severity = Slot(sev.value, sev.score, sev.spoken);
