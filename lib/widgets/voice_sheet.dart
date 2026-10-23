@@ -157,7 +157,12 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
               ModelPrompt(lang: store.language),
               const SizedBox(height: 24),
               // Mic: loader while starting, pulsing while listening, tap to finish.
-              GestureDetector(
+              // The pulse grows inside a fixed box so the sheet never moves.
+              SizedBox(
+                width: 124,
+                height: 124,
+                child: Center(
+                  child: GestureDetector(
                 onTap: switch (phase) {
                   _Phase.listening || _Phase.starting => _done,
                   _Phase.empty || _Phase.error => _record,
@@ -197,6 +202,8 @@ class _VoiceSheetState extends State<VoiceSheet> with SingleTickerProviderStateM
                         const Icon(Icons.refresh, color: Colors.white, size: 32),
                       _ => const Icon(Icons.mic, color: Colors.white, size: 34),
                     },
+                  ),
+                ),
                   ),
                 ),
               ),
