@@ -2,7 +2,7 @@ import 'lexicon.dart';
 import 'numbers.dart';
 import 'utterance.dart';
 
-enum AgentIntent { addFarmer, addAsset, assignPlot, raiseAlert, takePhoto, briefing, search, unknown }
+enum AgentIntent { addFarmer, addAsset, assignPlot, raiseAlert, briefing, search, unknown }
 
 /// Routes a free-form utterance from the home-screen mic to one of the agents.
 class IntentRouter {
@@ -60,8 +60,6 @@ class IntentRouter {
 
     // "add Ramesh Kumar to the paddy project": adding without a plot word is a farmer.
     if (add && !plotWord && !searchVerb) return AgentIntent.addFarmer;
-
-    if (s('take_photo') >= 0.9) return AgentIntent.takePhoto;
 
     // Questions about tasks with a specific status ("which tasks are done",
     // "overdue visits", "upcoming work") are a task search; plain "what's

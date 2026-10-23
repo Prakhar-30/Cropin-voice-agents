@@ -16,7 +16,6 @@ import 'briefing_screen.dart';
 import 'detail_screens.dart';
 import 'nav_controller.dart';
 import 'raise_alert_screen.dart';
-import 'take_photos_screen.dart';
 
 /// The home / search-bar mic: one utterance is routed to the right agent.
 class VoiceRouter {
@@ -58,8 +57,6 @@ class VoiceRouter {
         await nav.push(MaterialPageRoute(builder: (_) => RaiseAlertScreen(initialUtterance: text)));
       case AgentIntent.assignPlot:
         await _assign(context, text);
-      case AgentIntent.takePhoto:
-        await nav.push(MaterialPageRoute(builder: (_) => const TakePhotosScreen()));
       case AgentIntent.briefing:
         if (defaultEntity == SearchEntity.tasks) {
           _search(context, text, defaultEntity);

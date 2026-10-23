@@ -185,10 +185,6 @@ class Lexicon {
       'raise alert', 'alert', 'raise', 'report', 'अलर्ट', 'चेतावनी', 'ಅಲರ್ಟ್', 'ಎಚ್ಚರಿಕೆ',
       'அலர்ட்', 'எச்சரிக்கை',
     ],
-    'take_photo': [
-      'take photo', 'photo', 'photos', 'picture', 'camera', 'फोटो', 'फ़ोटो', 'तस्वीर',
-      'ಫೋಟೋ', 'ಫೋಟೊ', 'ಚಿತ್ರ', 'ಕ್ಯಾಮೆರಾ', 'புகைப்படம்', 'போட்டோ', 'கேமரா',
-    ],
     'briefing': [
       "what's my day", 'what is my day', 'my day', 'today', 'pending', 'briefing',
       'plan for today', 'आज', 'बाकी', 'आज का काम', 'ಇಂದು', 'ಇವತ್ತು', 'ಇವತ್ತಿನ', 'ಬಾಕಿ',

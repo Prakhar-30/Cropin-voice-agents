@@ -254,8 +254,6 @@ void main() {
       expect(IntentRouter.detect('add new farmer'), AgentIntent.addFarmer);
       expect(IntentRouter.detect('ಹೊಸ ರೈತ ಸೇರಿಸಿ'), AgentIntent.addFarmer);
       expect(IntentRouter.detect('புதிய நிலம் சேர்'), AgentIntent.addAsset);
-      expect(IntentRouter.detect('take photo'), AgentIntent.takePhoto);
-      expect(IntentRouter.detect('ಫೋಟೋ'), AgentIntent.takePhoto);
     });
   });
 
