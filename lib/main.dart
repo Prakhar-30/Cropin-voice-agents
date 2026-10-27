@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_shell.dart';
+import 'screens/farmer_form_screen.dart';
 import 'services/speech_models.dart';
 import 'theme/app_theme.dart';
 
@@ -18,6 +18,7 @@ class CropinVoiceApp extends StatelessWidget {
         title: 'Cropin Voice',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        home: const HomeShell(),
+        // This build is the Add Farmer voice assistant only.
+        home: const FarmerFormScreen(),
       );
 }

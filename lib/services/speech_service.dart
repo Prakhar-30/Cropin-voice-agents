@@ -169,7 +169,11 @@ class SpeechService extends ChangeNotifier {
     _autoStop = autoStopOnSilence;
     lastError = null;
     if (state == SpeechState.error) state = SpeechState.idle;
-    if (SpeechModels.instance.isReady(lang)) return _startModel(lang, onResult);
+    // Never fall back to the phone's recogniser just because the check of
+    // which models are on the phone hasn't finished yet.
+    final models = SpeechModels.instance;
+    if (models.state[lang] == ModelState.checking) await models.refresh();
+    if (models.isReady(lang)) return _startModel(lang, onResult);
     if (!await init()) return false;
     _dict.clear();
     _segPartial = '';

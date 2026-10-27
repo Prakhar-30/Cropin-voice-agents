@@ -48,6 +48,27 @@ class TtsService {
     }
   }
 
+  /// Speaks [text] and returns when the voice has finished (or after a
+  /// length-based timeout when the phone has no voice for the language), so
+  /// the microphone never records the agent's own question.
+  Future<void> speakAndWait(String text, AgentLanguage lang) async {
+    if (!enabled || text.trim().isEmpty) return;
+    await _configure();
+    final cap = Duration(milliseconds: 1500 + 90 * text.length);
+    try {
+      await _tts.stop();
+      await _tts.setLanguage(lang.ttsLocale);
+      await _tts.awaitSpeakCompletion(true);
+      await _tts.speak(text).timeout(cap > const Duration(seconds: 25) ? const Duration(seconds: 25) : cap);
+    } catch (e) {
+      debugPrint('TTS failed: $e');
+    } finally {
+      try {
+        await _tts.awaitSpeakCompletion(false);
+      } catch (_) {}
+    }
+  }
+
   Future<void> stop() async {
     try {
       await _tts.stop();
