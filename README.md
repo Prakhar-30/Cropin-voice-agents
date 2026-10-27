@@ -11,6 +11,58 @@ Every push runs the **Build APK** GitHub Actions workflow, which attaches the AP
 - Latest APK: <https://github.com/Prakhar-30/Cropin-voice-agents/releases/latest/download/cropin-voice-agents.apk>
 - All builds: <https://github.com/Prakhar-30/Cropin-voice-agents/releases>
 
+# Add Farmer Voice Assist (first draft)
+
+This branch (`claude/add-farmer-voice-assist`) is a single-screen build: the app opens on **Add Farmer**, field for field as in Cropin Grow, with a voice assistant that fills it in a **conversation** instead of one long dictation.
+
+APKs for this branch: release tags `add-farmer-v1.0.<run>` on <https://github.com/Prakhar-30/Cropin-voice-agents/releases>, file `cropin-add-farmer-voice.apk`.
+
+## How the conversation works
+
+1. Tap **Voice Assist** (under Auto Detect Data). A panel docks above Save Draft / Submit, so the form stays visible and fills as you talk.
+2. **First answer, free form:** "Ramesh Kumar, 98450 12345, paddy project". Everything recognised is filled at once, in any of the four languages and in either word order ("…, धान प्रोजेक्ट").
+3. **Ask back for each missing required field**, one at a time (name → mobile → project). Required fields can't be skipped.
+4. **Optional fields are offered, not interrogated:** "The required details are done. 24 optional fields are still empty: personal details, address and bank details. Would you like to fill any of them, or shall I submit?" Pick a section (or "all"); inside it the agent asks field by field. "Skip", "no" or "छोड़ो" leaves a field; "that's all" ends the section.
+5. **Address** starts with "Shall I fill the address from your current location?", which fills country, state, district, city, taluka and PIN. Then it asks for village and landmark.
+6. **Summary and confirmation** before saving: "Ramesh Kumar, 98450 12345, Paddy Sustainability, and 6 more details. Shall I submit?" Answer Yes / "No, change something" / Save draft.
+
+At any point you can:
+- **volunteer other fields by name**: "village Hosakote, PIN 562114";
+- **correct** the last value: "no, 98450 12346";
+- say **go back**, **repeat**, **stop**, **save draft** or **submit**;
+- tap an **option chip** instead of speaking;
+- **switch language** from the panel.
+
+**Dropdowns** (Project, Gender, Contractor, Area unit, Language, Country, Location):
+- The question names two examples, and all options show as chips.
+- Answers match by name or by alias in any of the four scripts (धान → Paddy Sustainability, ಕಬ್ಬು → Sugarcane Yield Plus).
+- They also match by position ("the second one", "दूसरा") or by part of a name.
+- An ambiguous answer gets "Did you mean Kharif Chilli 2026 or Groundnut Kharif 2026?". An unknown one gets the list of options.
+
+**Values are checked and read back:**
+- Mobile numbers are read back digit by digit, and Aadhaar / account numbers by their last 4 digits.
+- A wrong digit count is caught ("I heard 9 digits…").
+- Dates of birth are understood as "15 August 1980", "उन्नीस सौ अस्सी" or just an age.
+- Email is understood when spoken ("ramesh at gmail dot com").
+- PAN and IFSC are understood when spelled letter by letter, in English, Hindi, Kannada or Tamil letter names.
+
+**Answer timing:**
+- The agent speaks its question and only then opens the microphone.
+- An answer ends after 2.75 s of silence or a tap on the mic.
+- Silence twice in a row pauses the agent.
+
+### Why this flow
+- **Slot filling with elicitation** is the standard dialog pattern ([Alexa dialog management](https://developer.amazon.com/en-US/docs/alexa/custom-skills/dialog-interface-reference.html)). Prompt only for missing required slots, then confirm once for the whole record. [Amazon's guidance](https://developer.amazon.com/en-US/blogs/alexa/alexa-skills-kit/2018/05/build-advanced-alexa-skills-confirm-what-customers-want-with-dialog-management) warns that confirming every slot doubles the number of questions, so this flow confirms implicitly by reading values back and asks once at the end.
+- **Lists:** [Google's conversation design](https://developers.google.com/assistant/conversation-design/list) suggests 2–10 options and not reading whole lists aloud. That's why the agent speaks two examples and shows every option as a chip.
+- **Fill only what was said:** voice form fillers in CRMs, such as [Sage Copilot "Forms by Voice"](https://support.forcemanager.net/en/articles/11623506-intelligent-voice-reporting-fill-in-forms-with-sage-copilot) and [Pega Voice AI](https://academy.pega.com/topic/best-practices-using-form-autofill/v1/in/64911), fill only the fields a person actually mentions. This agent does the same, and also asks for the rest.
+- **Agriculture:** voice agents for farmers mostly do advisory, e.g. [Farm Vaidya in Telugu and Tamil](https://www.ondial.ai/blog/ai-voice-agents-for-farmers-daily-use). Structured capture of location, crop and acreage by voice is the pattern [insurance agents use](https://aigrants.in/topics/farmer-insurance-voice-agents). [Assisted Farmer ID registration](https://news.desikheti.com/farmer-id-explained-meaning-benefits-and-how-to-apply/) is done by local helpers today. A field officer's assistant that asks questions is the gap this fills.
+
+Code: `lib/farmer_form/` (field definitions, value parsers, `FarmerFormAgent`) and `lib/screens/farmer_form_screen.dart`. Tests: `test/farmer_agent_test.dart`.
+
+---
+
+The rest of this README describes the full multi-agent app this branch was cut from.
+
 ## The four agents
 
 | # | Agent | Where | What it does |
