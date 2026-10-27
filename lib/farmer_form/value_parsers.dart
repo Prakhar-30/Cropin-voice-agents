@@ -37,8 +37,8 @@ class ValueProblem {
 }
 
 class Parsed {
-  const Parsed.value(FieldValue this.value) : problem = null;
-  const Parsed.problem(ValueProblem this.problem) : value = null;
+  const Parsed.ok(FieldValue this.value) : problem = null;
+  const Parsed.bad(ValueProblem this.problem) : value = null;
   const Parsed.none()
       : value = null,
         problem = null;
@@ -109,7 +109,7 @@ class ValueParsers {
     if (words.isEmpty) return const Parsed.none();
     final kept = words.take(maxWords).join(' ');
     final conf = words.length > maxWords ? 0.75 : (Transliterator.hasIndic(kept) ? 0.85 : 0.92);
-    return Parsed.value(FieldValue(display(kept, titleCase: titleCase), confidence: conf, heard: kept));
+    return Parsed.ok(FieldValue(display(kept, titleCase: titleCase), confidence: conf, heard: kept));
   }
 
   static Parsed _place(FieldSpec f, String text) {
@@ -118,7 +118,7 @@ class ValueParsers {
       final m = PhraseMatcher.best(u, {for (final c in f.choices) c.id: [c.label, ...c.aliases]},
           minScore: 0.86);
       if (m != null) {
-        return Parsed.value(FieldValue(f.choice(m.value)!.label, confidence: m.score, heard: m.spoken));
+        return Parsed.ok(FieldValue(f.choice(m.value)!.label, confidence: m.score, heard: m.spoken));
       }
     }
     return _name(f, text, maxWords: 4);
@@ -171,9 +171,9 @@ class ValueParsers {
     final d = readDigits(text);
     if (d.isEmpty) return const Parsed.none();
     if (d.length < min || d.length > max) {
-      return Parsed.problem(ValueProblem(ProblemKind.digits, heard: d, got: d.length, need: need));
+      return Parsed.bad(ValueProblem(ProblemKind.digits, heard: d, got: d.length, need: need));
     }
-    return Parsed.value(FieldValue(d, heard: d));
+    return Parsed.ok(FieldValue(d, heard: d));
   }
 
   static Parsed _phone(String text) {
@@ -181,13 +181,13 @@ class ValueParsers {
     if (p == null) {
       final d = readDigits(text);
       if (d.isEmpty) return const Parsed.none();
-      return Parsed.problem(ValueProblem(ProblemKind.digits, heard: d, got: d.length, need: '10'));
+      return Parsed.bad(ValueProblem(ProblemKind.digits, heard: d, got: d.length, need: '10'));
     }
     if (!p.looksValid) {
-      return Parsed.problem(
+      return Parsed.bad(
           ValueProblem(ProblemKind.digits, heard: p.digits, got: p.digits.length, need: '10'));
     }
-    return Parsed.value(FieldValue(p.digits, confidence: 0.97, heard: p.spoken));
+    return Parsed.ok(FieldValue(p.digits, confidence: 0.97, heard: p.spoken));
   }
 
   static String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
@@ -196,12 +196,12 @@ class ValueParsers {
     final u = Utterance(text);
     final a = NumberExtractor.extractArea(u);
     if (a != null) {
-      return Parsed.value(FieldValue(_fmt(a.value), unit: a.unit, confidence: a.score, heard: a.spoken));
+      return Parsed.ok(FieldValue(_fmt(a.value), unit: a.unit, confidence: a.score, heard: a.spoken));
     }
     for (final t in u.tokens) {
       final v = t.numeric;
       if (v != null && v > 0 && v < 100000) {
-        return Parsed.value(FieldValue(_fmt(v), confidence: 0.85, heard: t.raw));
+        return Parsed.ok(FieldValue(_fmt(v), confidence: 0.85, heard: t.raw));
       }
     }
     return const Parsed.none();
@@ -308,9 +308,9 @@ class ValueParsers {
         }
       }
       if (day != null && year != null && validYear(year) && validDay(day, m, year)) {
-        return Parsed.value(FieldValue(out(day, m, year), confidence: 0.9, heard: text));
+        return Parsed.ok(FieldValue(out(day, m, year), confidence: 0.9, heard: text));
       }
-      return Parsed.problem(ValueProblem(ProblemKind.invalid, heard: text));
+      return Parsed.bad(ValueProblem(ProblemKind.invalid, heard: text));
     }
 
     // "15 08 1980" / "15/8/1980"
@@ -318,7 +318,7 @@ class ValueParsers {
     if (digitsOnly.length == 3 && t.every((x) => x.isDigits || Utterance.isFiller(x.raw))) {
       final d = digitsOnly[0].toInt(), m = digitsOnly[1].toInt(), y = digitsOnly[2].toInt();
       if (validYear(y) && validDay(d, m, y)) {
-        return Parsed.value(FieldValue(out(d, m, y), confidence: 0.9, heard: text));
+        return Parsed.ok(FieldValue(out(d, m, y), confidence: 0.9, heard: text));
       }
     }
 
@@ -327,15 +327,15 @@ class ValueParsers {
       final n = compose(runs.first.$3);
       final saysAge = t.any((x) => _ageWords.contains(x.raw));
       if (n != null && validYear(n) && !saysAge) {
-        return Parsed.value(FieldValue('01/01/$n', confidence: 0.7, heard: text, approximate: true));
+        return Parsed.ok(FieldValue('01/01/$n', confidence: 0.7, heard: text, approximate: true));
       }
       if (n != null && n >= 10 && n <= 110) {
-        return Parsed.value(
+        return Parsed.ok(
             FieldValue('01/01/${today.year - n}', confidence: 0.7, heard: text, approximate: true));
       }
     }
     if (runs.isEmpty) return const Parsed.none();
-    return Parsed.problem(ValueProblem(ProblemKind.invalid, heard: text));
+    return Parsed.bad(ValueProblem(ProblemKind.invalid, heard: text));
   }
 
   // ------------------------------------------------------- email, PAN, IFSC
@@ -391,9 +391,9 @@ class ValueParsers {
     final e = b.toString();
     if (e.isEmpty) return const Parsed.none();
     if (RegExp(r'^[a-z0-9._-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$').hasMatch(e)) {
-      return Parsed.value(FieldValue(e, confidence: 0.85, heard: text));
+      return Parsed.ok(FieldValue(e, confidence: 0.85, heard: text));
     }
-    return Parsed.problem(ValueProblem(ProblemKind.invalid, heard: e));
+    return Parsed.bad(ValueProblem(ProblemKind.invalid, heard: e));
   }
 
   static const Map<String, String> _letterNames = {
@@ -461,8 +461,8 @@ class ValueParsers {
   static Parsed _spelled(String text, RegExp pattern, int length) {
     final s = spell(text);
     if (s.isEmpty) return const Parsed.none();
-    if (pattern.hasMatch(s)) return Parsed.value(FieldValue(s, confidence: 0.85, heard: text));
-    return Parsed.problem(ValueProblem(ProblemKind.invalid, heard: s, got: s.length, need: '$length'));
+    if (pattern.hasMatch(s)) return Parsed.ok(FieldValue(s, confidence: 0.85, heard: text));
+    return Parsed.bad(ValueProblem(ProblemKind.invalid, heard: s, got: s.length, need: '$length'));
   }
 
   // ---------------------------------------------------------------- dropdowns
@@ -500,16 +500,16 @@ class ValueParsers {
       final best = all.first;
       final rival = all.where((m) => m.value != best.value && m.score >= best.score - 0.01).toList();
       if (rival.isEmpty || best.score >= 1.0 && rival.every((r) => r.score < 1.0)) {
-        return Parsed.value(
+        return Parsed.ok(
             FieldValue(best.value, confidence: best.score, heard: best.spoken));
       }
       final ids = {best.value, ...rival.map((r) => r.value)};
-      return Parsed.problem(ValueProblem(ProblemKind.ambiguous,
+      return Parsed.bad(ValueProblem(ProblemKind.ambiguous,
           heard: best.spoken, options: [for (final id in ids) f.choice(id)!]));
     }
     final ord = _ordinal(u, f.choices.length);
     if (ord != null) {
-      return Parsed.value(FieldValue(f.choices[ord].id, confidence: 0.9, heard: text));
+      return Parsed.ok(FieldValue(f.choices[ord].id, confidence: 0.9, heard: text));
     }
     // Partial names: share of an option's words that were said.
     final said = u.tokens.where((t) => !Utterance.isFiller(t.raw)).toList();
@@ -533,10 +533,10 @@ class ValueParsers {
       final top = scores.values.reduce((a, b) => a > b ? a : b);
       final best = scores.entries.where((e) => e.value == top).map((e) => e.key).toList();
       if (best.length == 1) {
-        return Parsed.value(FieldValue(best.first.id, confidence: top >= 0.99 ? 0.9 : 0.8, heard: text));
+        return Parsed.ok(FieldValue(best.first.id, confidence: top >= 0.99 ? 0.9 : 0.8, heard: text));
       }
-      return Parsed.problem(ValueProblem(ProblemKind.ambiguous, heard: text, options: best));
+      return Parsed.bad(ValueProblem(ProblemKind.ambiguous, heard: text, options: best));
     }
-    return Parsed.problem(ValueProblem(ProblemKind.noMatch, heard: text));
+    return Parsed.bad(ValueProblem(ProblemKind.noMatch, heard: text));
   }
 }

@@ -66,23 +66,23 @@ jobs:
         run: flutter build apk --release --target-platform android-arm64 --build-number=${{ github.run_number }}
 
       - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk cropin-voice-agents.apk
+        run: cp build/app/outputs/flutter-apk/app-release.apk cropin-add-farmer-voice.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: cropin-voice-agents-apk
-          path: cropin-voice-agents.apk
+          path: cropin-add-farmer-voice.apk
 
       - name: Publish GitHub release
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v1.0.${{ github.run_number }}
-          name: Cropin Voice Agents APK v1.0.${{ github.run_number }}
+          tag_name: add-farmer-v1.0.${{ github.run_number }}
+          name: Add Farmer Voice Assist APK v1.0.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          make_latest: true
-          files: cropin-voice-agents.apk
+          make_latest: false
+          files: cropin-add-farmer-voice.apk
           body: |
-            Cropin Grow offline voice agents (English, Hindi, Kannada, Tamil).
+            Add Farmer voice assistant (English, Hindi, Kannada, Tamil) — first draft.
             Built from ${{ github.ref_name }} @ ${{ github.sha }}.
