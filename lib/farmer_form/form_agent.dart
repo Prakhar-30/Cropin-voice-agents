@@ -799,7 +799,7 @@ class FarmerFormAgent {
         final phrase = TextUtils.normalize(p);
         if (norm == phrase) return e.key;
         // one-word command with a polite/carrier word around it ("skip it please")
-        if (words.length <= 3 && phrase.split(' ').length >= 1 && ' $norm '.contains(' $phrase ') &&
+        if (words.length <= 3 && ' $norm '.contains(' $phrase ') &&
             !(e.key == _Cmd.repeat && words.length > 1)) {
           return e.key;
         }

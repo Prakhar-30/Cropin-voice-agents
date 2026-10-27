@@ -433,8 +433,8 @@ class Lexicon {
     knTens.forEach((tens, stem) {
       knUnits.forEach((u, suffix) => out['$stem$suffix'] = (tens + u).toDouble());
       final short = stem.substring(0, stem.length - 1); // "ಇಪ್ಪತ್ತ" -> "ಇಪ್ಪತ್"
-      out['${short}ಮೂರು'] = (tens + 3).toDouble();
-      out['${short}ನಾಲ್ಕು'] = (tens + 4).toDouble();
+      out['$shortಮೂರು'] = (tens + 3).toDouble();
+      out['$shortನಾಲ್ಕು'] = (tens + 4).toDouble();
     });
     // Tamil: "இருபத்" + "தொன்று" = இருபத்தொன்று (21); 90 joins with "ற".
     const taTens = {

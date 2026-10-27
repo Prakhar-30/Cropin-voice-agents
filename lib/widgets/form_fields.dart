@@ -23,7 +23,13 @@ class FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: CropinColors.text)),
+          Flexible(
+            flex: 4,
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: CropinColors.text)),
+          ),
           if (required) const Text('*', style: TextStyle(color: CropinColors.required, fontSize: 13)),
           const Spacer(),
           if (mark != VoiceMark.none)
