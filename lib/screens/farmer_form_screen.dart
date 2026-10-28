@@ -524,12 +524,8 @@ class _FarmerFormScreenState extends State<FarmerFormScreen> {
     );
   }
 
-  BoxDecoration _frame(bool on) => BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: on
-            ? [BoxShadow(color: CropinColors.green.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 3)]
-            : const [],
-      );
+  /// No highlight around fields: the "by voice" tag on the label is enough.
+  BoxDecoration _frame(bool on) => const BoxDecoration();
 
   Widget _section(String title, bool? open, VoidCallback? toggle, List<Widget> children) => Padding(
         padding: const EdgeInsets.fromLTRB(18, 20, 18, 6),
@@ -851,19 +847,8 @@ class _TextInputState extends State<_TextInput> {
       AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          color: switch (mark) {
-            VoiceMark.filled => const Color(0xFFF0FAF3),
-            VoiceMark.check => const Color(0xFFFFF8E6),
-            VoiceMark.none => Colors.white,
-          },
-          border: Border.all(
-            color: switch (mark) {
-              VoiceMark.filled => CropinColors.voiceFilled,
-              VoiceMark.check => CropinColors.voiceCheck,
-              VoiceMark.none => CropinColors.border,
-            },
-            width: mark == VoiceMark.none ? 1.2 : 1.8,
-          ),
+          color: Colors.white,
+          border: Border.all(color: CropinColors.border, width: 1.2),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(children: [

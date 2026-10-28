@@ -60,20 +60,11 @@ class FieldLabel extends StatelessWidget {
       );
 }
 
+/// Fields keep their normal look when filled by voice; the label's
+/// "by voice" / "please check" tag shows how a value was filled.
 BoxDecoration _boxFor(VoiceMark mark) => BoxDecoration(
-      color: switch (mark) {
-        VoiceMark.filled => const Color(0xFFF0FAF3),
-        VoiceMark.check => const Color(0xFFFFF8E6),
-        VoiceMark.none => Colors.white,
-      },
-      border: Border.all(
-        color: switch (mark) {
-          VoiceMark.filled => CropinColors.voiceFilled,
-          VoiceMark.check => CropinColors.voiceCheck,
-          VoiceMark.none => CropinColors.border,
-        },
-        width: mark == VoiceMark.none ? 1.2 : 1.8,
-      ),
+      color: Colors.white,
+      border: Border.all(color: CropinColors.border, width: 1.2),
       borderRadius: BorderRadius.circular(6),
     );
 
