@@ -54,10 +54,69 @@ void main() {
     });
   });
 
+  group('open first turn', () {
+    test('any field, in any order, is filled from the first answer', () {
+      final a = agentFor()..start();
+      final r = a.hear('Ramesh Kumar mobile 98450 12345 village Hosakote pin code 562114 '
+          'gender male aadhaar 1234 5678 9012 bank name canara bank');
+      expect(a.values['name'], 'Ramesh Kumar');
+      expect(a.values['mobile'], '9845012345');
+      expect(a.values['village'], 'Hosakote');
+      expect(a.values['pin'], '562114');
+      expect(a.values['gender'], 'male');
+      expect(a.values['aadhaar'], '123456789012');
+      expect(a.values['bankName'], 'Canara Bank');
+      // then it guides through what's left: the missing required field first
+      expect(r.asking, 'project');
+      expect(r.chips, contains('Fill manually'));
+    });
+
+    test('details said without field names', () {
+      final a = agentFor()..start();
+      a.hear('Ramesh Kumar 98450 12345 male Canara Bank Aadhaar 1234 5678 9012');
+      expect(a.values['name'], 'Ramesh Kumar');
+      expect(a.values['mobile'], '9845012345');
+      expect(a.values['gender'], 'male');
+      expect(a.values['bankName'], 'Canara Bank');
+      expect(a.values['aadhaar'], '123456789012');
+      final b = agentFor()..start();
+      b.hear('Sunita Devi 9845012345 female 2345 6789 0123');
+      expect(b.values['name'], 'Sunita Devi');
+      expect(b.values['gender'], 'female');
+      expect(b.values['aadhaar'], '234567890123');
+    });
+
+    test('Hindi: everything at once, then guided', () {
+      final a = agentFor(AgentLanguage.hindi)..start();
+      final r = a.hear('रमेश कुमार, मोबाइल नंबर 9845012345, गाँव होसकोटे, पिन कोड 562114');
+      expect(a.values['name'], 'Ramesh Kumar');
+      expect(a.values['mobile'], '9845012345');
+      expect(a.values['pin'], '562114');
+      expect(r.asking, 'project');
+    });
+
+    test('fill manually hands over to the form, and Talk resumes', () {
+      final a = agentFor()..start();
+      a.hear('Ramesh Kumar 9845012345');
+      final r = a.hear('fill manually');
+      expect(r.action, AgentAction.manual);
+      expect(r.listen, isFalse);
+      a.values['project'] = 'p5'; // typed by hand
+      final again = a.start();
+      expect(again.openEnded, isFalse);
+      expect(a.mode, AgentMode.offering);
+      expect(again.chips, contains('Fill manually'));
+      expect(agentFor(AgentLanguage.kannada).hear('ನಾನೇ ತುಂಬುತ್ತೇನೆ').action, AgentAction.manual);
+    });
+  });
+
   group('one question at a time', () {
     test('asks for each missing required field', () {
       final a = agentFor();
-      expect(a.start().asking, 'name');
+      final open = a.start();
+      expect(open.asking, isNull);
+      expect(open.openEnded, isTrue);
+      expect(open.chips, contains('Fill manually'));
       expect(a.hear('Ramesh Kumar').asking, 'mobile');
       expect(a.hear('nine eight four five zero one two three four five').asking, 'project');
       expect(a.values['mobile'], '9845012345');

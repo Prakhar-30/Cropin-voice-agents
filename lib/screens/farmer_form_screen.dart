@@ -186,24 +186,36 @@ class _FarmerFormScreenState extends State<FarmerFormScreen> {
         if (!mounted || turn != _turn) return;
         _saveDraft();
         return;
+      case AgentAction.manual:
+        await tts.speakAndWait(r.speech, lang);
+        if (!mounted || turn != _turn) return;
+        _closeAgent();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Fill the rest yourself — tap Talk to continue by voice anytime')));
+        return;
       default:
         break;
     }
-    await tts.speakAndWait(r.speech, lang);
+    // The opening "tell me everything" goes straight to the microphone; the
+    // prompt is shown, not read out.
+    if (!r.openEnded) await tts.speakAndWait(r.speech, lang);
     if (!mounted || turn != _turn || !active) return;
     if (r.listen) {
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted || turn != _turn || !active) return;
-      await _listen();
+      await _listen(openEnded: r.openEnded);
     } else {
       setState(() => phase = _Phase.idle);
     }
   }
 
-  Future<void> _listen() async {
+  /// [openEnded] answers ("everything about the farmer") end after a longer
+  /// pause, so thinking of the next detail doesn't cut the recording.
+  Future<void> _listen({bool openEnded = false}) async {
     final id = ++_listenId;
     setState(() => phase = _Phase.starting);
-    final ok = await speech.start(lang, onResult: (text, isFinal) {
+    final ok = await speech.start(lang,
+        silence: openEnded ? const Duration(seconds: 4) : null, onResult: (text, isFinal) {
       if (isFinal) _heard(id, text);
     });
     if (!mounted || id != _listenId) return;
@@ -415,7 +427,7 @@ class _FarmerFormScreenState extends State<FarmerFormScreen> {
             key: const Key('voice-assist'),
             icon: Icons.record_voice_over_outlined,
             title: 'Voice Assist',
-            subtitle: "Speak the details — I'll ask for the rest",
+            subtitle: "Say everything you have — I'll ask for the rest",
             pill: 'Talk',
             pillIcon: Icons.mic,
             highlight: true,

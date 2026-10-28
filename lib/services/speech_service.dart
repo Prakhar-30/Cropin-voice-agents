@@ -35,6 +35,7 @@ class SpeechService extends ChangeNotifier {
 
   /// Silence after the last spoken word that ends the command.
   static const endSilence = Duration(milliseconds: 2750);
+  Duration _silence = endSilence;
 
   /// Give up if nothing at all is said for this long after tapping the mic.
   static const noSpeechTimeout = Duration(seconds: 15);
@@ -163,10 +164,14 @@ class SpeechService extends ChangeNotifier {
   /// Starts a new dictation in [lang]. [onResult] is called once with
   /// `isFinal == true` when the command has ended.
   /// With [autoStopOnSilence] false (hold-to-talk) only [stop] ends it.
+  /// [silence] overrides [endSilence] for longer, open answers.
   Future<bool> start(AgentLanguage lang,
-      {void Function(String text, bool isFinal)? onResult, bool autoStopOnSilence = true}) async {
+      {void Function(String text, bool isFinal)? onResult,
+      bool autoStopOnSilence = true,
+      Duration? silence}) async {
     await _halt();
     _autoStop = autoStopOnSilence;
+    _silence = silence ?? endSilence;
     lastError = null;
     if (state == SpeechState.error) state = SpeechState.idle;
     // Never fall back to the phone's recogniser just because the check of
@@ -308,7 +313,7 @@ class SpeechService extends ChangeNotifier {
     if (!_active || _finishing) return;
     final now = DateTime.now();
     final heard = _lastVoiceAt;
-    if (_autoStop && heard != null && !_engine.speaking && now.difference(heard) >= endSilence) {
+    if (_autoStop && heard != null && !_engine.speaking && now.difference(heard) >= _silence) {
       _finish();
     } else if (_autoStop && heard == null && now.difference(_startedAt) >= noSpeechTimeout) {
       _finish();
@@ -406,10 +411,10 @@ class SpeechService extends ChangeNotifier {
     final now = DateTime.now();
     final hasText = !_dict.isEmpty || _segPartial.isNotEmpty;
     final heardVoice = _lastVoiceAt != null;
-    if (_autoStop && heardVoice && hasText && now.difference(_lastVoiceAt!) >= endSilence) {
+    if (_autoStop && heardVoice && hasText && now.difference(_lastVoiceAt!) >= _silence) {
       _finish();
     } else if (_autoStop && heardVoice && !hasText &&
-        now.difference(_lastVoiceAt!) >= endSilence + const Duration(seconds: 2)) {
+        now.difference(_lastVoiceAt!) >= _silence + const Duration(seconds: 2)) {
       // spoke but the recogniser never returned words — don't hang forever
       _finish();
     } else if (_autoStop && !heardVoice && !hasText && now.difference(_startedAt) >= noSpeechTimeout) {

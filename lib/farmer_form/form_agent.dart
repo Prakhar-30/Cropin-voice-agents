@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../voice/agent_language.dart';
 import '../voice/nlu/text_utils.dart';
 import '../voice/nlu/utterance.dart';
@@ -6,7 +8,7 @@ import 'value_parsers.dart';
 
 enum AgentMode { asking, offering, confirming, editing, done }
 
-enum AgentAction { none, submit, saveDraft, useLocation, pause }
+enum AgentAction { none, submit, saveDraft, useLocation, pause, manual }
 
 /// One turn of the agent: what to show and say, what changed on the form and
 /// whether to listen again afterwards.
@@ -19,6 +21,7 @@ class AgentReply {
     this.filled = const {},
     this.action = AgentAction.none,
     this.listen = true,
+    this.openEnded = false,
   }) : speech = speech ?? text;
 
   final String text;
@@ -32,15 +35,19 @@ class AgentReply {
   final Map<String, FieldValue> filled;
   final AgentAction action;
   final bool listen;
+
+  /// The answer may be long ("everything about the farmer"): allow longer
+  /// pauses before the recording ends.
+  final bool openEnded;
 }
 
-enum _Cmd { stop, repeat, back, skip, skipAll, submit, draft, help }
+enum _Cmd { stop, repeat, back, skip, skipAll, submit, draft, help, manual }
 
 /// Fills the Add Farmer form through a conversation.
 ///
 /// Slot filling as in Alexa dialog management / Dialogflow forms: the first
-/// answer may hold several details ("Ramesh Kumar, 98450 12345, paddy
-/// project"); the agent then asks for each missing required field, one at a
+/// turn is open — the user says everything they have, any field, in any
+/// order, and all of it is filled; the agent then asks for each missing required field, one at a
 /// time, offers the optional sections instead of reading out 20 more
 /// questions, and confirms once before submitting. Any turn may volunteer
 /// other fields by name ("village Hosakote, PIN 562114"), correct the last
@@ -62,6 +69,9 @@ class FarmerFormAgent {
   String? _lastFilled;
   bool _locationAsked = false;
   bool _offeredOnce = false;
+
+  /// The first, open turn: unlabelled words there are the farmer's name.
+  bool _open = false;
   int _misses = 0;
   int _silences = 0;
 
@@ -77,17 +87,18 @@ class FarmerFormAgent {
 
   AgentReply start() {
     mode = AgentMode.asking;
-    if (_required.every((f) => !filled(f.id))) {
-      asking = 'name';
-      _history.add('name');
+    if (FarmerFormSpec.fields.every((f) => f.id == 'areaUnit' || !filled(f.id))) {
+      asking = null;
+      _open = true;
       return AgentReply(
         _t(
-          "Let's add a farmer. Tell me their name, mobile number and project — all at once is fine.",
-          'चलिए किसान जोड़ते हैं। उनका नाम, मोबाइल नंबर और प्रोजेक्ट बताइए — एक साथ भी बता सकते हैं।',
-          'ರೈತರನ್ನು ಸೇರಿಸೋಣ. ಅವರ ಹೆಸರು, ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಮತ್ತು ಪ್ರಾಜೆಕ್ಟ್ ಹೇಳಿ — ಒಟ್ಟಿಗೆ ಹೇಳಿದರೂ ಸರಿ.',
-          'விவசாயியைச் சேர்ப்போம். அவர்களின் பெயர், மொபைல் எண் மற்றும் திட்டத்தைச் சொல்லுங்கள் — ஒரே முறையில் சொன்னாலும் சரி.',
+          "Tell me everything you have about the farmer — name, mobile, project, address, bank details, anything, in any order. I'll fill it in and then ask for whatever is missing.",
+          'किसान के बारे में जो भी जानकारी है, सब बताइए — नाम, मोबाइल, प्रोजेक्ट, पता, बैंक विवरण, किसी भी क्रम में। मैं भर दूँगा और फिर जो बचा है वह पूछूँगा।',
+          'ರೈತರ ಬಗ್ಗೆ ನಿಮ್ಮ ಬಳಿ ಇರುವ ಎಲ್ಲಾ ಮಾಹಿತಿ ಹೇಳಿ — ಹೆಸರು, ಮೊಬೈಲ್, ಪ್ರಾಜೆಕ್ಟ್, ವಿಳಾಸ, ಬ್ಯಾಂಕ್ ವಿವರ, ಯಾವುದೇ ಕ್ರಮದಲ್ಲಿ. ನಾನು ತುಂಬುತ್ತೇನೆ, ನಂತರ ಉಳಿದದ್ದನ್ನು ಕೇಳುತ್ತೇನೆ.',
+          'விவசாயி பற்றி உங்களிடம் உள்ள எல்லா விவரங்களையும் சொல்லுங்கள் — பெயர், மொபைல், திட்டம், முகவரி, வங்கி விவரங்கள், எந்த வரிசையிலும். நான் நிரப்பிவிட்டு, மீதமுள்ளதைக் கேட்கிறேன்.',
         ),
-        asking: 'name',
+        chips: [_manualWord],
+        openEnded: true,
       );
     }
     return _next(const []);
@@ -139,6 +150,16 @@ class FarmerFormAgent {
         return _submit();
       case _Cmd.back:
         return _back();
+      case _Cmd.manual:
+        _open = false;
+        return AgentReply(
+          _t('Sure — fill the rest in the form yourself. Tap Talk whenever you want me back.',
+              'ठीक है — बाकी फ़ॉर्म में खुद भर दीजिए। जब चाहें Talk दबाकर मुझे वापस बुलाइए।',
+              'ಸರಿ — ಉಳಿದದ್ದನ್ನು ಫಾರ್ಮ್‌ನಲ್ಲಿ ನೀವೇ ತುಂಬಿ. ಬೇಕಾದಾಗ Talk ಒತ್ತಿ ನನ್ನನ್ನು ಕರೆಯಿರಿ.',
+              'சரி — மீதியைப் படிவத்தில் நீங்களே நிரப்புங்கள். தேவைப்படும்போது Talk அழுத்தி என்னை அழையுங்கள்.'),
+          action: AgentAction.manual,
+          listen: false,
+        );
       default:
         break;
     }
@@ -207,7 +228,8 @@ class FarmerFormAgent {
     }
 
     // "no, it's …" right after a value: a correction of that value.
-    var target = asking;
+    var target = asking ?? (_open && !filled('name') ? 'name' : null);
+    _open = false;
     var text0 = said;
     final words = norm.split(' ');
     if (words.length > 1 && _no.contains(words.first) && _lastFilled != null && mode != AgentMode.confirming) {
@@ -271,7 +293,7 @@ class FarmerFormAgent {
     String spanText(int from, int to) =>
         [for (var i = from; i < to; i++) if (!claimed[i]) u.tokens[i].raw].join(' ');
 
-    void claim(FieldSpec f, int from, int to, Parsed p) {
+    void claim(FieldSpec f, int from, int to, Parsed p, {bool exact = false}) {
       final heard = (p.value?.heard ?? p.problem?.heard ?? '').split(' ').toSet();
       final digitsOnly = const {
         FieldKind.phone, FieldKind.aadhaar, FieldKind.pin, FieldKind.account,
@@ -279,7 +301,7 @@ class FarmerFormAgent {
       for (var i = from; i < to; i++) {
         if (claimed[i]) continue;
         final t = u.tokens[i];
-        final take = switch (f.kind) {
+        final take = exact ? heard.contains(t.raw) : switch (f.kind) {
           FieldKind.dropdown => heard.contains(t.raw),
           FieldKind.area => heard.contains(t.raw) || t.numeric != null,
           _ when digitsOnly => t.numeric != null || t.isDigits || heard.contains(t.raw),
@@ -307,11 +329,15 @@ class FarmerFormAgent {
     for (final m in pending) {
       final f = FarmerFormSpec.byId[m.value]!;
       final k = chosen.indexOf(m);
-      final from = k > 0 ? chosen[k - 1].start + chosen[k - 1].length : 0;
+      var from = k > 0 ? chosen[k - 1].start + chosen[k - 1].length : 0;
+      // A name or place said before its field name is the few words just before it.
+      if (const {FieldKind.name, FieldKind.text, FieldKind.place}.contains(f.kind)) {
+        from = math.max(from, m.start - 4);
+      }
       var p = ValueParsers.parse(f, spanText(from, m.start));
       if (p.isEmpty && f.isDropdown) p = ValueParsers.choice(f, spanText(0, u.length));
       if (p.isEmpty) continue;
-      claim(f, from, m.start, p);
+      claim(f, from, m.start, p, exact: true);
       out.add(f.id, p);
     }
 
@@ -322,6 +348,39 @@ class FarmerFormAgent {
       if (p.value != null) {
         claim(FarmerFormSpec.byId['mobile']!, 0, u.length, p);
         out.add('mobile', p);
+      }
+    }
+    // A lone 12-digit number is an Aadhaar number.
+    if (!digitFields.contains(expecting) && !out.has('aadhaar') && !filled('aadhaar')) {
+      final d = ValueParsers.readDigits(spanText(0, u.length));
+      if (d.length == 12) {
+        final p = Parsed.ok(FieldValue(d, confidence: 0.85, heard: d));
+        claim(FarmerFormSpec.byId['aadhaar']!, 0, u.length, p);
+        out.add('aadhaar', p);
+      }
+    }
+    // "male" / "महिला" / "ಗಂಡು" said on its own is the gender.
+    if (expecting != 'gender' && !out.has('gender') && !filled('gender')) {
+      final f = FarmerFormSpec.byId['gender']!;
+      final p = ValueParsers.choice(f, spanText(0, u.length));
+      final v = p.value;
+      if (v != null && v.confidence >= 1.0 && (v.value == 'male' || v.value == 'female')) {
+        claim(f, 0, u.length, p, exact: true);
+        out.add('gender', p);
+      }
+    }
+    // Well-known bank names ("Canara Bank", "SBI").
+    if (expecting != 'bankName' && !out.has('bankName') && !filled('bankName')) {
+      final f = FarmerFormSpec.byId['bankName']!;
+      final lex = {
+        for (final c in f.choices)
+          c.id: [c.label, ...c.aliases.where((a) => a.length > 3 && a != 'union')],
+      };
+      final m = PhraseMatcher.best(Utterance(spanText(0, u.length)), lex, minScore: 1.0);
+      if (m != null) {
+        final p = Parsed.ok(FieldValue(f.choice(m.value)!.label, confidence: 0.95, heard: m.spoken));
+        claim(f, 0, u.length, p, exact: true);
+        out.add('bankName', p);
       }
     }
     if (expecting != 'project' && !out.has('project') && !filled('project')) {
@@ -468,6 +527,7 @@ class FarmerFormAgent {
       chips: [
         if (f.isDropdown) ...f.choices.take(8).map((c) => c.label),
         if (!f.required) _skipWord,
+        _manualWord,
       ],
       asking: f.id,
       filled: filled,
@@ -504,10 +564,10 @@ class FarmerFormAgent {
     if (!_offeredOnce) {
       _offeredOnce = true;
       q = _t(
-        'Great, the required details are done. $empty optional fields are still empty — $names. Would you like to fill any of them, or shall I submit?',
-        'बढ़िया, ज़रूरी जानकारी पूरी हो गई। अभी $empty वैकल्पिक फ़ील्ड खाली हैं — $names। क्या इनमें से कुछ भरना चाहेंगे, या सबमिट कर दूँ?',
-        'ಚೆನ್ನಾಗಿದೆ, ಕಡ್ಡಾಯ ಮಾಹಿತಿ ಪೂರ್ಣವಾಯಿತು. ಇನ್ನೂ $empty ಐಚ್ಛಿಕ ಮಾಹಿತಿ ಖಾಲಿ ಇದೆ — $names. ಯಾವುದಾದರೂ ತುಂಬಬೇಕೆ, ಅಥವಾ ಸಬ್ಮಿಟ್ ಮಾಡಲೇ?',
-        'நன்று, கட்டாய விவரங்கள் முடிந்தன. இன்னும் $empty விருப்ப விவரங்கள் காலியாக உள்ளன — $names. ஏதாவது நிரப்ப வேண்டுமா, அல்லது சமர்ப்பிக்கட்டுமா?',
+        'Great, the required details are done. $empty optional fields are still empty — $names. Shall I take you through any of them, will you fill them yourself, or shall I submit?',
+        'बढ़िया, ज़रूरी जानकारी पूरी हो गई। अभी $empty वैकल्पिक फ़ील्ड खाली हैं — $names। क्या मैं इनमें से कुछ पूछूँ, आप खुद भरेंगे, या सबमिट कर दूँ?',
+        'ಚೆನ್ನಾಗಿದೆ, ಕಡ್ಡಾಯ ಮಾಹಿತಿ ಪೂರ್ಣವಾಯಿತು. ಇನ್ನೂ $empty ಐಚ್ಛಿಕ ಮಾಹಿತಿ ಖಾಲಿ ಇದೆ — $names. ಇವುಗಳಲ್ಲಿ ಯಾವುದಾದರೂ ನಾನು ಕೇಳಲೇ, ನೀವೇ ತುಂಬುತ್ತೀರಾ, ಅಥವಾ ಸಬ್ಮಿಟ್ ಮಾಡಲೇ?',
+        'நன்று, கட்டாய விவரங்கள் முடிந்தன. இன்னும் $empty விருப்ப விவரங்கள் காலியாக உள்ளன — $names. இவற்றில் ஏதாவது நான் கேட்கட்டுமா, நீங்களே நிரப்புகிறீர்களா, அல்லது சமர்ப்பிக்கட்டுமா?',
       );
     } else {
       final done = justDone == null ? '' : '${_capital(FarmerFormSpec.sectionName(justDone, lang))} — ${_t('done.', 'पूरा।', 'ಮುಗಿಯಿತು.', 'முடிந்தது.')} ';
@@ -522,6 +582,7 @@ class FarmerFormAgent {
         for (final s in open) _capital(FarmerFormSpec.sectionName(s, lang)),
         _submitWord,
         _draftWord,
+        _manualWord,
       ],
       filled: filled,
     );
@@ -590,7 +651,10 @@ class FarmerFormAgent {
   }
 
   AgentReply _skip() {
-    final f = asking == null ? null : FarmerFormSpec.byId[asking];
+    final missing = _required.where((r) => !filled(r.id));
+    final f = asking == null
+        ? (missing.isEmpty ? null : missing.first)
+        : FarmerFormSpec.byId[asking];
     if (f == null) return _next(const []);
     if (f.required && !filled(f.id)) {
       return _ask(f, [
@@ -734,6 +798,7 @@ class FarmerFormAgent {
   String get _skipWord => _t('Skip', 'छोड़ें', 'ಬಿಡಿ', 'தவிர்');
   String get _submitWord => _t('Submit', 'सबमिट', 'ಸಬ್ಮಿಟ್', 'சப்மிட்');
   String get _draftWord => _t('Save draft', 'ड्राफ्ट सेव करें', 'ಡ್ರಾಫ್ಟ್ ಉಳಿಸಿ', 'டிராஃப்ட் சேமி');
+  String get _manualWord => _t('Fill manually', 'खुद भरूँगा', 'ನಾನೇ ತುಂಬುತ್ತೇನೆ', 'நானே நிரப்புகிறேன்');
   String get _changeWord => _t('No, change something', 'नहीं, कुछ बदलना है', 'ಇಲ್ಲ, ಬದಲಿಸಬೇಕು', 'இல்லை, மாற்ற வேண்டும்');
 
   static String _norm(String s) => TextUtils.normalize(s)
@@ -788,6 +853,12 @@ class FarmerFormAgent {
       'ಡ್ರಾಫ್ಟ್ ಉಳಿಸಿ', 'டிராஃப்ட்', 'டிராஃப்ட் சேமி', 'வரைவு',
     ],
     _Cmd.help: ['help', 'what can i say', 'मदद', 'ಸಹಾಯ', 'உதவி'],
+    _Cmd.manual: [
+      'fill manually', 'manually', 'manual', 'i will type', "i'll type", 'i will fill', "i'll fill it",
+      'let me type', 'खुद भरूँगा', 'खुद भरूंगा', 'मैं खुद भरूँगा', 'मैं खुद भरूंगा', 'खुद भरेंगे', 'मैनुअल',
+      'ನಾನೇ ತುಂಬುತ್ತೇನೆ', 'ನಾನೇ ತುಂಬುತ್ತೀನಿ', 'ಮ್ಯಾನುವಲ್', 'ಕೈಯಾರೆ', 'நானே நிரப்புகிறேன்', 'நானே நிரப்புவேன்',
+      'மேனுவல்', 'கையால்',
+    ],
   };
 
   /// A command is the whole (short) utterance: "skip", "छोड़ दो", "ಸಬ್ಮಿಟ್ ಮಾಡಿ".

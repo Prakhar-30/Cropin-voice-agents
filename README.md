@@ -19,9 +19,9 @@ APKs for this branch: release tags `add-farmer-v1.0.<run>` on <https://github.co
 
 ## How the conversation works
 
-1. Tap **Voice Assist** (under Auto Detect Data). A panel docks above Save Draft / Submit, so the form stays visible and fills as you talk.
-2. **First answer, free form:** "Ramesh Kumar, 98450 12345, paddy project". Everything recognised is filled at once, in any of the four languages and in either word order ("…, धान प्रोजेक्ट").
-3. **Ask back for each missing required field**, one at a time (name → mobile → project). Required fields can't be skipped.
+1. Tap **Talk** on the Voice Assist row. The mic opens straight away; the prompt is shown on screen, not read out. A panel docks above Save Draft / Submit, so the form stays visible and fills as you talk.
+2. **Say everything you have, in any order, about any field:** "Ramesh Kumar, 98450 12345, village Hosakote, PIN 562114, male, Aadhaar 1234 5678 9012, Canara Bank". All of it is filled. This works in any of the four languages and in either word order ("…, धान प्रोजेक्ट"). The opening answer allows 4-second pauses so you can think of the next detail.
+3. **Then it guides you through what's left**, with **Fill manually** offered at every step. It first asks for each missing required field, one at a time (name → mobile → project). Required fields can't be skipped.
 4. **Optional fields are offered, not interrogated:** "The required details are done. 22 optional fields are still empty: personal details, address and bank details. Would you like to fill any of them, or shall I submit?" Pick a section (or "all"); inside it the agent asks field by field. "Skip", "no" or "छोड़ो" leaves a field; "that's all" ends the section.
 5. **Address** starts with "Shall I fill the address from your current location?", which fills country, state, district, city, taluka and PIN. Then it asks for village and landmark.
 6. **Summary and confirmation** before saving: "Ramesh Kumar, 98450 12345, Paddy Sustainability, and 6 more details. Shall I submit?" Answer Yes / "No, change something" / Save draft.
