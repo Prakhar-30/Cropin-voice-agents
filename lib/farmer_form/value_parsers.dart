@@ -176,6 +176,35 @@ class ValueParsers {
     return Parsed.ok(FieldValue(d, heard: d));
   }
 
+  /// The first valid mobile number among several numbers said in a row
+  /// ("98450 12345 … 2345 6789 0123" -> the mobile, not the Aadhaar).
+  /// Returns the word range [start, end) in [words] and the digits.
+  static (int, int, String)? mobileAmong(List<String> words) {
+    final t = words.map(Token.new).toList();
+    var i = 0;
+    while (i < t.length) {
+      final start = i;
+      while (i < t.length &&
+          (_digit(t[i]) != null ||
+              Lexicon.doubleWords.contains(t[i].raw) ||
+              Lexicon.tripleWords.contains(t[i].raw))) {
+        i++;
+      }
+      if (i == start) {
+        i++;
+        continue;
+      }
+      for (var a = start; a < i; a++) {
+        for (var b = a + 1; b <= i; b++) {
+          final d = readDigits(words.sublist(a, b).join(' '));
+          if (d.length > 10) break;
+          if (d.length == 10 && RegExp(r'^[6-9]').hasMatch(d)) return (a, b, d);
+        }
+      }
+    }
+    return null;
+  }
+
   static Parsed _phone(String text) {
     final p = NumberExtractor.extractPhone(Utterance(text));
     if (p == null) {

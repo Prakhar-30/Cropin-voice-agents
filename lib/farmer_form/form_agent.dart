@@ -344,10 +344,14 @@ class FarmerFormAgent {
     // 2. Unlabelled details that can't be anything else.
     const digitFields = {'mobile', 'aadhaar', 'pin', 'bankAccount', 'area', 'dob'};
     if (!digitFields.contains(expecting) && !out.has('mobile') && !filled('mobile')) {
-      final p = ValueParsers.parse(FarmerFormSpec.byId['mobile']!, spanText(0, u.length));
-      if (p.value != null) {
-        claim(FarmerFormSpec.byId['mobile']!, 0, u.length, p);
-        out.add('mobile', p);
+      final free = [for (var i = 0; i < u.length; i++) if (!claimed[i]) i];
+      final w = ValueParsers.mobileAmong([for (final i in free) u.tokens[i].raw]);
+      if (w != null) {
+        final (a, b, digits) = w;
+        for (var k = a; k < b; k++) {
+          claimed[free[k]] = true;
+        }
+        out.add('mobile', Parsed.ok(FieldValue(digits, confidence: 0.97, heard: digits)));
       }
     }
     // A lone 12-digit number is an Aadhaar number.
